@@ -4,8 +4,19 @@ from datetime import datetime
 import logs, order_class, quereries
 from pydantic import BaseModel
 import sqlite3
+import ulid
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],  # frontend URL
+    allow_methods=["*"],                      # allow all HTTP methods
+    allow_headers=["*"],                      # allow all headers
+)
 
 def change_status(cursor, output):
     order_id = output[0]
@@ -24,7 +35,7 @@ def manage_database(command: str, order: order_class.Order = None):
 
     # add a new order to the DB
     if command == 'POST':
-        values = [order.get_id(), order.get_timestamp(), order.get_size(), order.get_quantity(), order.get_status()]
+        values = [order.id, order.timestamp, order.size, order.quantity, order.status]
         cursor.execute("INSERT INTO ORDERS VALUES (?, ?, ?, ?, ?)", values)
 
     # retrieve the first order in a queue from DB
@@ -48,13 +59,15 @@ def retrieve_order(position: int):
     
 
 @app.post('/order')
-def create_order(size: int, quantity: int):
+def create_order(orderIn: order_class.OrderIn):
+    print("TRIGGERED!")
     '''Create an order with a timestamp and add it to a queue'''
-    timestamp = datetime.now()
-    order = order_class.Order(timestamp, size, quantity)
-    logs.items.append(order)
+    order = order_class.Order(id=str(ulid.new()), timestamp=datetime.now(), 
+                              size=orderIn.size, quantity=orderIn.quantity, 
+                              price = orderIn.size * orderIn.quantity)
+    print("ITS HERE!")
     manage_database('POST', order)
-    return logs.items
+    return order
 
 # run the server
 if __name__ == '__main__':
