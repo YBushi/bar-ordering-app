@@ -2,3 +2,5 @@ fastapi
 uvicorn[standard]
 pydantic
 ulid-py
+datetime
+http
