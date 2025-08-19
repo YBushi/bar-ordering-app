@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from http import HTTPStatus
 from datetime import datetime
-import logs, order_class, quereries
+import order_class as order_class, quereries as quereries
 from pydantic import BaseModel
 import sqlite3
 import ulid
