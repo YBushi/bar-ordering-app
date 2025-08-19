@@ -10,10 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],  # frontend URL
+    allow_origins=["*"],
     allow_methods=["*"],                      # allow all HTTP methods
     allow_headers=["*"],                      # allow all headers
 )
@@ -23,8 +20,8 @@ def change_status(cursor, output):
     cursor.execute("UPDATE ORDERS SET STATUS = 'completed' WHERE ID = ?", (order_id, ))
     return
 
-def manage_database(command: str, order: order_class.Order = None):
-    '''Create a connection to the database'''
+def connect_db():
+    # try to connect to the database and return the cursor and connection
     try:
         connection = sqlite3.connect('database.db')
         cursor = connection.cursor()
@@ -32,41 +29,79 @@ def manage_database(command: str, order: order_class.Order = None):
         print("Connected to DB!")
     except sqlite3.Error as error:
         print(f"Error occured: {error}")
+    return cursor, connection
 
-    # add a new order to the DB
-    if command == 'POST':
-        values = [order.id, order.timestamp, order.size, order.quantity, order.status]
-        cursor.execute("INSERT INTO ORDERS VALUES (?, ?, ?, ?, ?)", values)
-
-    # retrieve the first order in a queue from DB
-    if command == 'GET':
-        cursor.execute("SELECT * FROM ORDERS WHERE STATUS = 'in_progress'")
-        output = cursor.fetchone()
-        change_status(cursor, output)
-        print(output)
+def disconnect_db(cursor, connection):
+    # commit changes and disconnect from the database
     connection.commit()
     cursor.close()
 
 
+# def manage_database(command: str, order: order_class.Order = None):
+#     '''Create a connection to the database'''
+#     try:
+#         connection = sqlite3.connect('database.db')
+#         cursor = connection.cursor()
+#         cursor.execute(quereries.create_table_query)
+#         print("Connected to DB!")
+#     except sqlite3.Error as error:
+#         print(f"Error occured: {error}")
+
+#     # add a new order to the DB
+#     if command == 'POST':
+#         values = [order.id, order.userId, order.timestamp, order.size, 
+#                   order.quantity, order.status]
+#         cursor.execute("INSERT INTO ORDERS VALUES (?, ?, ?, ?, ?, ?)", values)
+
+#     # retrieve the first order in a queue from DB
+#     if command == 'GET':
+#         cursor.execute("SELECT * FROM ORDERS WHERE STATUS = 'in_progress'")
+#         output = cursor.fetchone()
+#         change_status(cursor, output)
+#         connection.commit()
+#         cursor.close()
+#         return order
+#     connection.commit()
+#     cursor.close()
+
+
 # get beer order
-@app.get('/order/{position}')
-def retrieve_order(position: int):
-    # check whether the position is correct
-    if position >= len(logs.items):
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="Order not found")
-    manage_database('GET')
-    return logs.items[position]
+@app.get('/orders/{userID}')
+def retrieve_order(userID: str):
+    cursor, connection = connect_db()
+    try:
+        cursor.execute("SELECT * FROM ORDERS WHERE USERID = ? AND STATUS = 'in_progress'",
+        (userID,))
+        rows = cursor.fetchall()
+        orders = [
+                {
+                    "id": r[0],
+                    "userId": r[1],
+                    "timestamp": r[2],
+                    "size": r[3],
+                    "quantity": r[4],
+                    "price": r[5],
+                    "status": r[6],
+                }
+                for r in rows
+        ]
+        return orders
+    finally:
+        disconnect_db(cursor, connection)
     
 
 @app.post('/order')
 def create_order(orderIn: order_class.OrderIn):
-    print("TRIGGERED!")
     '''Create an order with a timestamp and add it to a queue'''
-    order = order_class.Order(id=str(ulid.new()), timestamp=datetime.now(), 
-                              size=orderIn.size, quantity=orderIn.quantity, 
+    cursor, connection = connect_db()
+    order = order_class.Order(id=str(ulid.new()), userId=orderIn.userId, 
+                              timestamp=datetime.now(), size=orderIn.size, 
+                              quantity=orderIn.quantity, 
                               price = orderIn.size * orderIn.quantity)
-    print("ITS HERE!")
-    manage_database('POST', order)
+    values = [order.id, order.userId, order.timestamp, order.size, 
+                  order.quantity, order.price, order.status]
+    cursor.execute("INSERT INTO ORDERS VALUES (?, ?, ?, ?, ?, ?, ?)", values)
+    disconnect_db(cursor, connection)
     return order
 
 # run the server
