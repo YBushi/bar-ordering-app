@@ -28,6 +28,12 @@ class WSManager:
     def disconnect(self, ws: WebSocket):
         self.clients.discard(ws)
     
+    async def send_text(self, ws: WebSocket, text: str):
+        if ws in self.clients:
+            await ws.send_text(text)
+        else:
+            print("Not sending to WS!")
+    
     async def broadcast(self, payload: dict):
         dead = []
         msg = json.dumps(payload)
@@ -38,6 +44,7 @@ class WSManager:
                 dead.append(ws)
         for ws in dead:
             self.disconnect(ws)
+
 ws_manager = WSManager()
 
 @app.websocket("/ws")
@@ -67,14 +74,14 @@ def disconnect_db(cursor, connection):
     cursor.close()
 
 @app.patch('/orders/{orderID}')
-def change_status(orderID: str, background_tasks: BackgroundTasks):
+async def change_status(orderID: str, background_tasks: BackgroundTasks):
     # change the status to completed
     cursor, connection = connect_db()
     try:
         cursor.execute("UPDATE ORDERS SET STATUS = 'completed' WHERE ID = ?", (orderID, ))
         print("BROADCASTING!")
-        background_tasks.add_task(ws_manager.broadcast, 
-                                  {"type": "ORDER_STATUS", "orderID": orderID, "status": "completed"})
+        await ws_manager.broadcast({"type": "ORDER_STATUS", "order": "completed"})
+        print("BROADCASTED!")
         return {"ok": True}
     finally:
         disconnect_db(cursor, connection)
@@ -109,7 +116,7 @@ def retrieve_order(userID: Optional[str] = Query(default=None)):
     
 
 @app.post('/order')
-def create_order(orderIn: order_class.OrderIn):
+async def create_order(orderIn: order_class.OrderIn):
     '''Create an order with a timestamp and add it to a queue'''
     cursor, connection = connect_db()
     order = order_class.Order(id=str(ulid.new()), userId=orderIn.userId, 

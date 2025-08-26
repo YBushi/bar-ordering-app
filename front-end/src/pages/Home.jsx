@@ -16,9 +16,33 @@ function Home() {
   const LARGE_PRICE = 3.2;
   const sizeMap = { "0.3L": 0.3, "0.5L": 0.5 };
   const userId = getUserId();
-  const ws = new WebSocket(WS_URL);
   const wsRef = useRef(null);
-  const dismissedRef = useRef(new Set());
+  const didConnect = useRef(null);
+
+  useEffect(() => {
+    if (didConnect.current) return;
+    didConnect.current = true;
+
+    const ws = new WebSocket(WS_URL);
+    wsRef.current = ws;
+
+    ws.onopen = () => console.log("✅ WS connected");
+    
+    /* handler for receiving message from the server */
+    ws.onmessage = (evt) => {
+      const msg = JSON.parse(evt.data);
+      if (msg.type !== "ORDER_STATUS") return;
+      alert("ORDER COMPLETED!");
+    }
+
+    ws.onclose = () => console.log("WS closed");
+    ws.onerror = (e) => console.error("WS error", e);
+      return () => {
+        try { ws.close(); } catch {}
+        wsRef.current = null;
+        didConnect.current = false;
+      };
+    }, []);
 
   /* handler for placing an order*/
   const placeOrder = (size, qty) => {
@@ -50,7 +74,8 @@ function Home() {
       return prev;
     }); 
     toast.success("Added to order!")
-
+    if (size === 0.3) setSmallQty("1");
+    if (size === 0.5) setLargeQty("1");
   };
 
   const submitCurrentOrder = async () => {
@@ -90,25 +115,25 @@ function Home() {
 
   //   return () => { clearInterval(ping); ws.close(); };
   // }, []);
-  useEffect(() => {
-    wsRef.current = ws;
+  // useEffect(() => {
+  //   wsRef.current = ws;
 
-    ws.onopen = () => console.log("✅ WS connected");
-    ws.onerror = (e) => console.error("❌ WS error", e);
-    ws.onmessage = (evt) => {
-      try {
-        const msg = JSON.parse(evt.data)
-        if (msg.type !== "ORDER_STATUS") return;
+  //   ws.onopen = () => console.log("✅ WS connected");
+  //   ws.onerror = (e) => console.error("❌ WS error", e);
+  //   ws.onmessage = (evt) => {
+  //     try {
+  //       const msg = JSON.parse(evt.data)
+  //       if (msg.type !== "ORDER_STATUS") return;
         
-        const id = msg.orderID;
-        const status = String(msg.status || "").toUpperCase();
-        if (!id || !status) return;
-        setMessage({ id, status });
-        setTimeout(() => setMessage(null), 3000);
-        return () => { clearInterval(ping); ws.close(); };
-      } catch {}
-    };
-  })
+  //       const id = msg.orderID;
+  //       const status = String(msg.status || "").toUpperCase();
+  //       if (!id || !status) return;
+  //       setMessage({ id, status });
+  //       setTimeout(() => setMessage(null), 3000);
+  //       return () => { clearInterval(ping); ws.close(); };
+  //     } catch {}
+  //   };
+  // })
   
 
   // retrieve orders every 3 seconds
@@ -135,11 +160,11 @@ function Home() {
         display: "flex", 
         gap: 0, 
         marginBottom: "20px",
-        justifyContent: "flex-start",
+        justifyContent: "space-between",
         width: "100%",
         flexWrap: "nowrap"
       }}>
-        <div style={{ display: "flex", gap: 20, justifyContent: "center", alignItems: "stretch", flex: "1 1 auto", flexWrap: "nowrap" }}>
+        <div style={{ display: "flex", gap: 20, justifyContent: "center", alignItems: "stretch", flex: "1 1 auto", flexWrap: "nowrap", maxWidth: "50%" }}>
         <div className="card" style={{ 
           flex: "1", 
           minWidth: "200px", 
@@ -443,7 +468,12 @@ function Home() {
         color: "#e9ecef",
         boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
         maxHeight: "300px",
-        overflow: "auto"
+        overflow: "auto",
+        boxSizing: "border-box",
+        maxWidth: 940,
+        width: "100%",
+        marginLeft: "auto",
+        marginRight: "auto"
       }}>
         <h3 style={{ 
           margin: "0 0 12px", 
