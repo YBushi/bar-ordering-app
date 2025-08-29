@@ -1,17 +1,14 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Dict
 class OrderIn(BaseModel):
-    size: float
-    quantity: int
+    items: Dict[str, int]
     userId: str
 
 class Order(BaseModel):
     id: str
     userId: str
     timestamp: datetime
-    size: float
-    quantity: int
-    price: float
     status: str="in_progress"
     

@@ -207,16 +207,29 @@ function Staff() {
                         verticalAlign: "top"
                       }}>
                         <div style={{ fontWeight: "600", color: "#e9ecef", marginBottom: "8px" }}>
-                          Order #{order.id}
+                          Order #{order.id.slice(0, 8)}...
                         </div>
-                        {order.items && order.items.map((item, idx) => (
-                          <div key={idx} style={{
-                            marginBottom: "4px",
-                            fontSize: "0.95rem"
-                          }}>
-                            {item.qty}x {item.size} beer
+                        {order.items && order.items.length > 0 ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                            {order.items.filter(item => item.quantity > 0).map((item, idx) => (
+                              <div key={idx} style={{
+                                fontSize: "0.95rem",
+                                padding: "4px 8px",
+                                background: "#2a2f39",
+                                borderRadius: "4px",
+                                border: "1px solid #3a3f49"
+                              }}>
+                                <span style={{ fontWeight: "600", color: "#e9ecef" }}>
+                                  {item.quantity}x
+                                </span> {item.name}
+                              </div>
+                            ))}
                           </div>
-                        ))}
+                        ) : (
+                          <div style={{ fontSize: "0.9rem", color: "#818997", fontStyle: "italic" }}>
+                            No items
+                          </div>
+                        )}
                       </td>
                       <td style={{
                         padding: "16px 20px",
