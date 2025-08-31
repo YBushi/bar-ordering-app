@@ -17,16 +17,16 @@ STAFF_ORIGIN  = os.getenv("STAFF_ORIGIN",  "https://bar-ordering-app.onrender.co
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[CLIENT_ORIGIN, STAFF_ORIGIN],
+    allow_origins=["*"],
     allow_credentials = True,
     allow_methods=["*"],                      # allow all HTTP methods
     allow_headers=["*"],                      # allow all headers
 )
 
-client = APIRouter(prefix="/api/client", tags=["client"])
-staff  = APIRouter(prefix="/api/staff",  tags=["staff"])
-app.include_router(client)
-app.include_router(staff)
+# client = APIRouter(prefix="/api/client", tags=["client"])
+# staff  = APIRouter(prefix="/api/staff",  tags=["staff"])
+# app.include_router(client)
+# app.include_router(staff)
 
 class WSManager:
     def __init__(self):
@@ -86,7 +86,7 @@ def disconnect_db(cursor, connection):
     connection.commit()
     cursor.close()
 
-@staff.patch('/orders/{orderID}')
+@app.patch('/orders/{orderID}')
 async def change_status(orderID: str, background_tasks: BackgroundTasks):
     # change the status to completed
     cursor, connection = connect_db()
@@ -100,8 +100,7 @@ async def change_status(orderID: str, background_tasks: BackgroundTasks):
         disconnect_db(cursor, connection)
 
 # get beer order
-@staff.get('/orders')
-@client.get('/orders')
+@app.get('/orders')
 def retrieve_order(userID: Optional[str] = Query(default=None)):
     cursor, connection = connect_db()
     try:
@@ -171,7 +170,7 @@ def retrieve_order(userID: Optional[str] = Query(default=None)):
         disconnect_db(cursor, connection)
     
 
-@client.post('/order')
+@app.post('/order')
 async def create_order(orderIn: order_class.OrderIn):
     '''Create an order with a timestamp and add it to a queue'''
     cursor, connection = connect_db()
