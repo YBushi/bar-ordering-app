@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query, BackgroundTasks, APIRouter
 from http import HTTPStatus
 from datetime import datetime
 import order_class as order_class
@@ -9,15 +9,22 @@ import ulid
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 import json
+import os
 
+CLIENT_ORIGIN = os.getenv("CLIENT_ORIGIN", "https://order.example.com")
+STAFF_ORIGIN  = os.getenv("STAFF_ORIGIN",  "https://staff.example.com")
 
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[CLIENT_ORIGIN, STAFF_ORIGIN],
+    allow_credentials = True,
     allow_methods=["*"],                      # allow all HTTP methods
     allow_headers=["*"],                      # allow all headers
 )
+
+client = APIRouter(prefix="/api/client", tags=["client"])
+staff  = APIRouter(prefix="/api/staff",  tags=["staff"])
 
 class WSManager:
     def __init__(self):
@@ -77,7 +84,7 @@ def disconnect_db(cursor, connection):
     connection.commit()
     cursor.close()
 
-@app.patch('/orders/{orderID}')
+@staff.patch('/orders/{orderID}')
 async def change_status(orderID: str, background_tasks: BackgroundTasks):
     # change the status to completed
     cursor, connection = connect_db()
@@ -161,7 +168,7 @@ def retrieve_order(userID: Optional[str] = Query(default=None)):
         disconnect_db(cursor, connection)
     
 
-@app.post('/order')
+@client.post('/order')
 async def create_order(orderIn: order_class.OrderIn):
     '''Create an order with a timestamp and add it to a queue'''
     cursor, connection = connect_db()
