@@ -98,7 +98,8 @@ async def change_status(orderID: str, background_tasks: BackgroundTasks):
         disconnect_db(cursor, connection)
 
 # get beer order
-@app.get('/orders')
+@staff.get('/orders')
+@client.get('/orders')
 def retrieve_order(userID: Optional[str] = Query(default=None)):
     cursor, connection = connect_db()
     try:
