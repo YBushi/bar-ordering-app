@@ -11,8 +11,8 @@ from typing import Optional
 import json
 import os
 
-CLIENT_ORIGIN = os.getenv("CLIENT_ORIGIN", "https://order.example.com")
-STAFF_ORIGIN  = os.getenv("STAFF_ORIGIN",  "https://staff.example.com")
+CLIENT_ORIGIN = os.getenv("CLIENT_ORIGIN", "https://stadium-ordering-app-1.onrender.com")
+STAFF_ORIGIN  = os.getenv("STAFF_ORIGIN",  "https://bar-ordering-app.onrender.com")
 
 app = FastAPI()
 app.add_middleware(
