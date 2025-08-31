@@ -25,6 +25,8 @@ app.add_middleware(
 
 client = APIRouter(prefix="/api/client", tags=["client"])
 staff  = APIRouter(prefix="/api/staff",  tags=["staff"])
+app.include_router(client)
+app.include_router(staff)
 
 class WSManager:
     def __init__(self):
