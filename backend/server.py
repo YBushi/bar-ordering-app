@@ -168,6 +168,10 @@ def retrieve_order(userID: Optional[str] = Query(default=None)):
         return list(by_id.values())
     finally:
         disconnect_db(cursor, connection)
+
+@app.get("/health")
+def health():
+    return {"ok": True}
     
 
 @app.post('/order')
