@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import toast, { Toaster } from 'react-hot-toast';
 import { getUserId } from "../userId";
-import API from "../apiBase";
-const WS_URL = (API || "").replace(/^http/, "ws") + "/ws";
+import {API, WS} from "../apiBase";
 
 window.addEventListener('error', (e) => alert('JS error: ' + e.message));
 function Home() {
@@ -25,7 +24,7 @@ function Home() {
     if (didConnect.current) return;
     didConnect.current = true;
 
-    const ws = new WebSocket(WS_URL);
+    const ws = new WebSocket(WS);
     wsRef.current = ws;
 
     ws.onopen = () => console.log("✅ WS connected");

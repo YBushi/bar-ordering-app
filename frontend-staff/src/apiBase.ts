@@ -1,4 +1,4 @@
-const API = import.meta.env.VITE_API_BASE;
+const API = import.meta.env.VITE_API_URL;
 if (!API) {
   console.warn("VITE_API_BASE missing — defaulting to http://localhost:8000 for dev");
 }
