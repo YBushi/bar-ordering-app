@@ -10,6 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 import json
 import os
+import psycopg2
+from psycopg2 import sql
 
 CLIENT_ORIGIN = os.getenv("CLIENT_ORIGIN", "https://stadium-ordering-app-1.onrender.com")
 STAFF_ORIGIN  = os.getenv("STAFF_ORIGIN",  "https://bar-ordering-app.onrender.com")
@@ -68,33 +70,54 @@ async def ws_endpoint(ws: WebSocket):
     except WebSocketDisconnect:
         ws_manager.disconnect(ws)
 
+# helper function to run multiple sql statements
+def run_ddl(cursor, ddl: str):
+    for stmt in [s.strip() for s in ddl.split(";") if s.strip()]:
+        cursor.execute(stmt + ";")
+
+# connect to Postgre DB
 def connect_db():
-    # try to connect to the database and return the cursor and connection
     try:
-        connection = sqlite3.connect('database.db')
+        db_url = os.getenv("DATABASE_URL")
+        connection = psycopg2.connect(db_url, sslmode="require")
         cursor = connection.cursor()
-        cursor.executescript(queries.create_drinks_table)
-        cursor.executescript(queries.create_orders_table)
-        cursor.executescript(queries.create_orderItems_table)
+        run_ddl(cursor, queries.create_drinks_table)
+        run_ddl(cursor, queries.create_orders_table)
+        run_ddl(cursor, queries.create_orderItems_table)
+        connection.commit()
         print("Connected to DB!")
-    except sqlite3.Error as error:
-        print(f"Error occured: {error}")
+    except psycopg2.Error as error:
+        print(f"Error occurred: {error}")
     return cursor, connection
+
+# def connect_db():
+#     # try to connect to the database and return the cursor and connection
+#     try:
+#         connection = sqlite3.connect('database.db')
+#         cursor = connection.cursor()
+#         cursor.executescript(queries.create_drinks_table)
+#         cursor.executescript(queries.create_orders_table)
+#         cursor.executescript(queries.create_orderItems_table)
+#         print("Connected to DB!")
+#     except sqlite3.Error as error:
+#         print(f"Error occured: {error}")
+#     return cursor, connection
 
 def disconnect_db(cursor, connection):
     # commit changes and disconnect from the database
-    connection.commit()
-    cursor.close()
+    try: 
+        connection.commit()
+    finally:
+        connection.close()
+        cursor.close()
 
 @app.patch('/orders/{orderID}')
 async def change_status(orderID: str, background_tasks: BackgroundTasks):
     # change the status to completed
     cursor, connection = connect_db()
     try:
-        cursor.execute("UPDATE ORDERS SET STATUS = 'completed' WHERE ID = ?", (orderID, ))
-        print("BROADCASTING!")
+        cursor.execute("UPDATE ORDERS SET STATUS = 'completed' WHERE ID = %s", (orderID, ))
         await ws_manager.broadcast({"type": "ORDER_STATUS", "order": "completed"})
-        print("BROADCASTED!")
         return {"ok": True}
     finally:
         disconnect_db(cursor, connection)
@@ -107,7 +130,7 @@ def retrieve_order(userID: Optional[str] = Query(default=None)):
         if userID is None:
             cursor.execute("SELECT * FROM ORDERS WHERE STATUS = 'in_progress' ORDER BY TIMESTAMP DESC")
         else:
-            cursor.execute("SELECT * FROM ORDERS WHERE USER_ID = ? AND STATUS = 'in_progress'"
+            cursor.execute("SELECT * FROM ORDERS WHERE USER_ID = %s AND STATUS = 'in_progress'"
             "ORDER BY TIMESTAMP DESC", (userID,))
         orders_rows = cursor.fetchall()
 
@@ -135,30 +158,28 @@ def retrieve_order(userID: Optional[str] = Query(default=None)):
         print(order_ids)
 
         # 2) Fetch ALL items for those orders in one query
-        placeholders = ",".join(["?"] * len(order_ids))
         cursor.execute(f"""
             SELECT
-              OI.ORDER_ID,
-              OI.DRINK_ID,
-              D.NAME,
-              OI.QTY,
-              OI.PRICE
-            FROM ORDER_ITEMS OI
-            JOIN DRINKS D ON D.ID = OI.DRINK_ID
-            WHERE OI.ORDER_ID IN ({placeholders})
-            ORDER BY OI.ORDER_ID, D.NAME
-        """, order_ids)
+              oi.order_id,
+              oi.drink_id,
+              d.name,
+              oi.qty,
+              oi.price
+            FROM order_items oi
+            JOIN drinks d ON d.id = oi.drink_id
+            WHERE oi.order_id IN %s
+            ORDER BY oi.order_id, d.name
+        """, (tuple(order_ids),))
         item_rows = cursor.fetchall()
-        print(f"Item rows: {item_rows}")
 
         for row in item_rows:
-            order_id = row[0]
-            qty = int(row[3])
-            price = float(row[4])
-            line_total = float(qty * price)
+            order_id, drink_id, name, qty, price = row
+            qty = int(qty)
+            price = float(price)
+            line_total = qty * price
             by_id[order_id]["items"].append({
-                "drinkId": row[1],
-                "name": row[2],
+                "drinkId": drink_id,
+                "name": name,
                 "quantity": qty,
                 "price": price,
                 "line_total": line_total
@@ -184,15 +205,15 @@ async def create_order(orderIn: order_class.OrderIn):
     drink_ids = list(orderIn.items.keys())
 
     placeholders = ",".join(["?"] * len(drink_ids))
-    rows = cursor.execute(
-        f"SELECT ID, PRICE FROM DRINKS WHERE ID IN ({placeholders})",
-        drink_ids
-    ).fetchall()
+    cursor.execute("""
+        SELECT id, price FROM drinks WHERE id IN %s
+    """, (tuple(drink_ids),))
+    rows = cursor.fetchall()
     found = {r[0]: r[1] for r in rows}
     order = order_class.Order(id=str(ulid.new()), userId=orderIn.userId, 
                               timestamp=datetime.now())
     cursor.execute(
-            "INSERT INTO ORDERS (ID, USER_ID, TIMESTAMP, STATUS) VALUES (?, ?, ?, ?)",
+            "INSERT INTO ORDERS (ID, USER_ID, TIMESTAMP, STATUS) VALUES (%s, %s, %s, %s)",
             (order.id, order.userId, order.timestamp, order.status)
         )
 
@@ -205,7 +226,7 @@ async def create_order(orderIn: order_class.OrderIn):
     cursor.executemany(
         """
         INSERT INTO ORDER_ITEMS (ORDER_ID, DRINK_ID, QTY, PRICE)
-        VALUES (?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s)
         """,
         items
     )
