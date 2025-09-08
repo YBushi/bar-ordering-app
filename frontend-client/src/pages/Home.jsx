@@ -34,6 +34,7 @@ function Home() {
       const msg = JSON.parse(evt.data);
       if (msg.type !== "ORDER_STATUS") return;
       alert("ORDER COMPLETED!");
+      retrieveOrders();
     }
 
     ws.onclose = () => console.log("WS closed");
@@ -100,11 +101,6 @@ function Home() {
       .catch(err => {console.error('Failed: ', err); setOrders([]);})
       .finally(() => setLoading(false));
   }
-  
-  // retrieve orders every 3 seconds
-  useEffect(() => {
-    retrieveOrders();
-  }, [userId]);
 
   return (
     

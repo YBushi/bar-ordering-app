@@ -5,7 +5,8 @@ if (import.meta.env.VITE_WS_URL) {
   WS = import.meta.env.VITE_WS_URL; 
 } else {
   WS = API.replace(/^http/, "ws"); 
-  WS = WS.replace(/\/$/, "");                     
+  WS = WS.replace(/\/$/, "");    
+  WS = `${WS}/ws`;                 
 }
 
 export { API, WS };
