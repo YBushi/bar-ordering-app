@@ -72,7 +72,6 @@ function Staff() {
   return (
     <div style={{
       minHeight: "100vh",
-      backgroundImage: "url('/tehelne-pole.jpg'), url('https://upload.wikimedia.org/wikipedia/commons/7/75/Teheln%C3%A9_pole_stadium_2019.jpg')",
       backgroundSize: "cover",
       backgroundPosition: "center",
       backgroundAttachment: "fixed"
