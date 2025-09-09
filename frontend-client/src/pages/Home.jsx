@@ -48,6 +48,15 @@ function Home() {
 
   /* handler for placing an order (posts entire currentOrder items)*/
   const placeOrder = () => {
+    const items = Object.fromEntries(
+      Object.entries(currentOrder)
+        .map(([k, v]) => [k, Number(v)])     
+        .filter(([, q]) => q > 0)            
+    );
+    if (Object.keys(items).length === 0) {
+      toast.error("Choose at least one item");
+      return Promise.reject(new Error("empty order"));
+    }
     const body = { items: currentOrder, userId };
     return fetch(`${API}/order`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)

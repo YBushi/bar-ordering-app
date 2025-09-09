@@ -27,14 +27,6 @@ app.add_middleware(
     allow_methods=["*"],                      # allow all HTTP methods
     allow_headers=["*"],                      # allow all headers
 )
-@app.exception_handler(Exception)
-async def catch_all(request, exc):
-    tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
-    # print to logs
-    print("UNCAUGHT EXCEPTION:", file=sys.stderr)
-    print(tb, file=sys.stderr)
-    # return details to the client (TEMP ONLY)
-    return JSONResponse(status_code=500, content={"error": str(exc), "traceback": tb[:4000]})
 
 # client = APIRouter(prefix="/api/client", tags=["client"])
 # staff  = APIRouter(prefix="/api/staff",  tags=["staff"])
@@ -239,29 +231,8 @@ async def create_order(orderIn: order_class.OrderIn):
     except HTTPException:
         connection.rollback()
         raise
-    except psycopg2.Error as e:
-        connection.rollback()
-        # Log EVERYTHING to server logs
-        print("POST /order psycopg2.Error:", e.__class__.__name__)
-        print("pgcode:", getattr(e, "pgcode", None))
-        print("pgerror:", getattr(e, "pgerror", None))
-        diag = getattr(e, "diag", None)
-        if diag:
-            print("diag.message_primary:", getattr(diag, "message_primary", None))
-            print("diag.constraint_name:", getattr(diag, "constraint_name", None))
-            print("diag.table_name:", getattr(diag, "table_name", None))
-            print("diag.column_name:", getattr(diag, "column_name", None))
-        traceback.print_exc()
-        # TEMP: include details in response while debugging
-        raise HTTPException(status_code=500, detail={
-            "type": e.__class__.__name__,
-            "pgcode": getattr(e, "pgcode", None),
-            "message": getattr(e, "pgerror", str(e)),
-        })
     except Exception as e:
         connection.rollback()
-        print("POST /order failed (non-psycopg2):", repr(e))
-        traceback.print_exc()
         raise HTTPException(status_code=500, detail={"type": e.__class__.__name__, "message": str(e)})
     finally:
         disconnect_db(cursor, connection)
