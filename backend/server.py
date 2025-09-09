@@ -90,19 +90,6 @@ def connect_db():
         print(f"Error occurred: {error}")
     return cursor, connection
 
-# def connect_db():
-#     # try to connect to the database and return the cursor and connection
-#     try:
-#         connection = sqlite3.connect('database.db')
-#         cursor = connection.cursor()
-#         cursor.executescript(queries.create_drinks_table)
-#         cursor.executescript(queries.create_orders_table)
-#         cursor.executescript(queries.create_orderItems_table)
-#         print("Connected to DB!")
-#     except sqlite3.Error as error:
-#         print(f"Error occured: {error}")
-#     return cursor, connection
-
 def disconnect_db(cursor, connection):
     # commit changes and disconnect from the database
     try: 
@@ -116,7 +103,7 @@ async def change_status(orderID: str, background_tasks: BackgroundTasks):
     # change the status to completed
     cursor, connection = connect_db()
     try:
-        cursor.execute("UPDATE ORDERS SET STATUS = 'completed' WHERE ID = %s", (orderID, ))
+        cursor.execute("UPDATE orders SET status = 'completed' WHERE id = %s", (orderID, ))
         await ws_manager.broadcast({"type": "ORDER_STATUS", "order": "completed"})
         return {"ok": True}
     finally:
@@ -128,10 +115,10 @@ def retrieve_order(userID: Optional[str] = Query(default=None)):
     cursor, connection = connect_db()
     try:
         if userID is None:
-            cursor.execute("SELECT * FROM ORDERS WHERE STATUS = 'in_progress' ORDER BY TIMESTAMP DESC")
+            cursor.execute("SELECT * FROM orders WHERE status = 'in_progress' ORDER BY timestamp DESC")
         else:
-            cursor.execute("SELECT * FROM ORDERS WHERE USER_ID = %s AND STATUS = 'in_progress'"
-            "ORDER BY TIMESTAMP DESC", (userID,))
+            cursor.execute("SELECT * FROM orders WHERE user_id = %s AND status = 'in_progress'"
+            "ORDER BY timestamp DESC", (userID,))
         orders_rows = cursor.fetchall()
 
         # if there are no orders in progress, return empty
@@ -199,38 +186,47 @@ def health():
 async def create_order(orderIn: order_class.OrderIn):
     '''Create an order with a timestamp and add it to a queue'''
     cursor, connection = connect_db()
-    cursor.execute("PRAGMA foreign_keys = ON") 
+    
+    try:
+        # retrieve the prices
+        drink_ids = list(orderIn.items.keys())
+        if not drink_ids:
+            raise HTTPException(status_code=400, detail="No items in the order!")
+        
+        cursor.execute("""
+            SELECT id, price FROM drinks WHERE id IN %s
+        """, (tuple(drink_ids),))
+        rows = cursor.fetchall()
+        found = {r[0]: r[1] for r in rows}
+        order = order_class.Order(id=str(ulid.new()), userId=orderIn.userId, 
+                                timestamp=datetime.now())
+        cursor.execute(
+                "INSERT INTO orders (id, user_id, timestamp, status) VALUES (%s, %s, %s, %s)",
+                (order.id, order.userId, order.timestamp, order.status)
+            )
 
-    # retrieve the prices
-    drink_ids = list(orderIn.items.keys())
+            # Prepare order_items tuples (order_id, drink_id, quantity, unit_price_cents)
+        items = [
+            (order.id, drink_id, qty, found[drink_id])
+            for drink_id, qty in orderIn.items.items()
+        ]
 
-    placeholders = ",".join(["?"] * len(drink_ids))
-    cursor.execute("""
-        SELECT id, price FROM drinks WHERE id IN %s
-    """, (tuple(drink_ids),))
-    rows = cursor.fetchall()
-    found = {r[0]: r[1] for r in rows}
-    order = order_class.Order(id=str(ulid.new()), userId=orderIn.userId, 
-                              timestamp=datetime.now())
-    cursor.execute(
-            "INSERT INTO ORDERS (ID, USER_ID, TIMESTAMP, STATUS) VALUES (%s, %s, %s, %s)",
-            (order.id, order.userId, order.timestamp, order.status)
+        cursor.executemany(
+            """
+            INSERT INTO order_items (order_id, drink_id, qty, price)
+            VALUES (%s, %s, %s, %s)
+            """,
+            items
         )
-
-        # Prepare order_items tuples (order_id, drink_id, quantity, unit_price_cents)
-    items = [
-        (order.id, drink_id, qty, found[drink_id])
-        for drink_id, qty in orderIn.items.items()
-    ]
-
-    cursor.executemany(
-        """
-        INSERT INTO ORDER_ITEMS (ORDER_ID, DRINK_ID, QTY, PRICE)
-        VALUES (%s, %s, %s, %s)
-        """,
-        items
-    )
-    disconnect_db(cursor, connection)
+    except HTTPException:
+        connection.rollback()
+        raise
+    except Exception as e:
+        connection.rollback()
+        print("POST /order failed:", repr(e))
+        raise HTTPException(status_code=500, detail="create_order failed")
+    finally:
+        disconnect_db(cursor, connection)
     return order
 
 # run the server
