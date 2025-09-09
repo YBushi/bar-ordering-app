@@ -230,7 +230,7 @@ async def create_order(orderIn: order_class.OrderIn):
         connection.rollback()
         raise
     except psycopg2.Error as e:
-        conn.rollback()
+        connection.rollback()
         # Log EVERYTHING to server logs
         print("POST /order psycopg2.Error:", e.__class__.__name__)
         print("pgcode:", getattr(e, "pgcode", None))
@@ -249,7 +249,7 @@ async def create_order(orderIn: order_class.OrderIn):
             "message": getattr(e, "pgerror", str(e)),
         })
     except Exception as e:
-        conn.rollback()
+        connection.rollback()
         print("POST /order failed (non-psycopg2):", repr(e))
         traceback.print_exc()
         raise HTTPException(status_code=500, detail={"type": e.__class__.__name__, "message": str(e)})
