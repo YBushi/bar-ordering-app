@@ -12,6 +12,7 @@ import json
 import os
 import psycopg2
 from psycopg2 import sql
+import traceback
 
 CLIENT_ORIGIN = os.getenv("CLIENT_ORIGIN", "https://stadium-ordering-app-1.onrender.com")
 STAFF_ORIGIN  = os.getenv("STAFF_ORIGIN",  "https://bar-ordering-app.onrender.com")
@@ -228,10 +229,30 @@ async def create_order(orderIn: order_class.OrderIn):
     except HTTPException:
         connection.rollback()
         raise
+    except psycopg2.Error as e:
+        conn.rollback()
+        # Log EVERYTHING to server logs
+        print("POST /order psycopg2.Error:", e.__class__.__name__)
+        print("pgcode:", getattr(e, "pgcode", None))
+        print("pgerror:", getattr(e, "pgerror", None))
+        diag = getattr(e, "diag", None)
+        if diag:
+            print("diag.message_primary:", getattr(diag, "message_primary", None))
+            print("diag.constraint_name:", getattr(diag, "constraint_name", None))
+            print("diag.table_name:", getattr(diag, "table_name", None))
+            print("diag.column_name:", getattr(diag, "column_name", None))
+        traceback.print_exc()
+        # TEMP: include details in response while debugging
+        raise HTTPException(status_code=500, detail={
+            "type": e.__class__.__name__,
+            "pgcode": getattr(e, "pgcode", None),
+            "message": getattr(e, "pgerror", str(e)),
+        })
     except Exception as e:
-        connection.rollback()
-        print("POST /order failed:", repr(e))
-        raise HTTPException(status_code=500, detail="create_order failed")
+        conn.rollback()
+        print("POST /order failed (non-psycopg2):", repr(e))
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail={"type": e.__class__.__name__, "message": str(e)})
     finally:
         disconnect_db(cursor, connection)
     
