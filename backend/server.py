@@ -93,10 +93,9 @@ def connect_db():
 def disconnect_db(cursor, connection):
     # commit changes and disconnect from the database
     try: 
-        connection.commit()
+        cursor.close()
     finally:
         connection.close()
-        cursor.close()
 
 @app.patch('/orders/{orderID}')
 async def change_status(orderID: str, background_tasks: BackgroundTasks):
@@ -105,6 +104,7 @@ async def change_status(orderID: str, background_tasks: BackgroundTasks):
     try:
         cursor.execute("UPDATE orders SET status = 'completed' WHERE id = %s", (orderID, ))
         await ws_manager.broadcast({"type": "ORDER_STATUS", "order": "completed"})
+        connection.commit()
         return {"ok": True}
     finally:
         disconnect_db(cursor, connection)
@@ -173,6 +173,7 @@ def retrieve_order(userID: Optional[str] = Query(default=None)):
             })
             by_id[order_id]["totalPrice"] = round(by_id[order_id]["totalPrice"] + line_total, 2)
         print(f"BY_ID: {by_id}")
+        connection.commit()
         return list(by_id.values())
     finally:
         disconnect_db(cursor, connection)
@@ -198,8 +199,12 @@ async def create_order(orderIn: order_class.OrderIn):
         """, (tuple(drink_ids),))
         rows = cursor.fetchall()
         found = {r[0]: r[1] for r in rows}
+        missing = [d for d in drink_ids if d not in found]
+        if missing:
+            raise HTTPException(status_code=400, detail=f"Unknown drink ids: {missing}")
+        
         order = order_class.Order(id=str(ulid.new()), userId=orderIn.userId, 
-                                timestamp=datetime.now())
+                                timestamp=datetime.now.isoformat())
         cursor.execute(
                 "INSERT INTO orders (id, user_id, timestamp, status) VALUES (%s, %s, %s, %s)",
                 (order.id, order.userId, order.timestamp, order.status)
@@ -207,7 +212,7 @@ async def create_order(orderIn: order_class.OrderIn):
 
             # Prepare order_items tuples (order_id, drink_id, quantity, unit_price_cents)
         items = [
-            (order.id, drink_id, qty, found[drink_id])
+            (order.id, drink_id, int(qty), found[drink_id])
             for drink_id, qty in orderIn.items.items()
         ]
 
@@ -218,6 +223,8 @@ async def create_order(orderIn: order_class.OrderIn):
             """,
             items
         )
+        connection.commit()
+        return order
     except HTTPException:
         connection.rollback()
         raise
@@ -227,7 +234,7 @@ async def create_order(orderIn: order_class.OrderIn):
         raise HTTPException(status_code=500, detail="create_order failed")
     finally:
         disconnect_db(cursor, connection)
-    return order
+    
 
 # run the server
 if __name__ == '__main__':
