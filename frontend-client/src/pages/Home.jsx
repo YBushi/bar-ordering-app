@@ -57,7 +57,7 @@ function Home() {
       toast.error("Choose at least one item");
       return Promise.reject(new Error("empty order"));
     }
-    const body = { items: currentOrder, userId };
+    const body = { items, userId };
     return fetch(`${API}/order`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
     })
