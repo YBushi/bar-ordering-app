@@ -70,7 +70,7 @@ async def ws_endpoint(ws: WebSocket):
     try: 
         while True:
             msg = await ws.receive_text()
-            await ws.sent_text(f"echo: {msg}")
+            await ws.send_text(f"echo: {msg}")
     except WebSocketDisconnect:
         ws_manager.disconnect(ws)
 
