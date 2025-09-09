@@ -206,8 +206,9 @@ async def create_order(orderIn: order_class.OrderIn):
         if missing:
             raise HTTPException(status_code=400, detail=f"Unknown drink ids: {missing}")
         
+        timestamp = datetime.now().isoformat()
         order = order_class.Order(id=str(ulid.new()), userId=orderIn.userId, 
-                                timestamp=datetime.now.isoformat())
+                                timestamp=timestamp)
         cursor.execute(
                 "INSERT INTO orders (id, user_id, timestamp, status) VALUES (%s, %s, %s, %s)",
                 (order.id, order.userId, order.timestamp, order.status)
