@@ -13,6 +13,8 @@ import os
 import psycopg2
 from psycopg2 import sql
 import traceback
+import traceback, sys
+from fastapi.responses import JSONResponse
 
 CLIENT_ORIGIN = os.getenv("CLIENT_ORIGIN", "https://stadium-ordering-app-1.onrender.com")
 STAFF_ORIGIN  = os.getenv("STAFF_ORIGIN",  "https://bar-ordering-app.onrender.com")
@@ -25,6 +27,14 @@ app.add_middleware(
     allow_methods=["*"],                      # allow all HTTP methods
     allow_headers=["*"],                      # allow all headers
 )
+@app.exception_handler(Exception)
+async def catch_all(request, exc):
+    tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    # print to logs
+    print("UNCAUGHT EXCEPTION:", file=sys.stderr)
+    print(tb, file=sys.stderr)
+    # return details to the client (TEMP ONLY)
+    return JSONResponse(status_code=500, content={"error": str(exc), "traceback": tb[:4000]})
 
 # client = APIRouter(prefix="/api/client", tags=["client"])
 # staff  = APIRouter(prefix="/api/staff",  tags=["staff"])
