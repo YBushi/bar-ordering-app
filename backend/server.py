@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query, BackgroundTasks, APIRouter
+from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, BackgroundTasks, APIRouter, Header
 from http import HTTPStatus
 from datetime import datetime
 import order_class as order_class
@@ -18,6 +18,8 @@ import traceback
 import traceback, sys
 from fastapi.responses import JSONResponse
 import registration as reg
+from pydantic import BaseModel, Field
+import hashlib, secrets
 
 CLIENT_ORIGIN = os.getenv("CLIENT_ORIGIN", "https://stadium-ordering-app-1.onrender.com")
 STAFF_ORIGIN  = os.getenv("STAFF_ORIGIN",  "https://bar-ordering-app.onrender.com")
@@ -35,6 +37,17 @@ app.add_middleware(
 # staff  = APIRouter(prefix="/api/staff",  tags=["staff"])
 # app.include_router(client)
 # app.include_router(staff)
+
+class RegisterIn(BaseModel):
+    name: str = Field(min_length=1, max_length=20)
+    room_number:str = Field(min_length=1, max_length=5)
+
+class RegisterOut(BaseModel):
+    device_token: str
+    device_id: str
+    guest_id: str
+    room_id: str
+    tab_id: str
 
 class WSManager:
     def __init__(self):
@@ -107,9 +120,14 @@ def disconnect_db(cursor, connection):
     finally:
         connection.close()
 
-@app.post('/register', response_model=reg.RegisterOut)
-def register(body: reg.RegisterIn):
-    token, token_hash = reg.issue_token()
+def issue_token():
+    token = secrets.token_urlsafe(48)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    return token, token_hash
+
+@app.post('/register', response_model=RegisterOut)
+def register(body: RegisterIn):
+    token, token_hash = issue_token()
     device_id = str(ulid.new())
 
     cursor, connection = connect_db()
@@ -156,7 +174,7 @@ def register(body: reg.RegisterIn):
             )
         connection.commit()
 
-        return reg.RegisterOut(
+        return RegisterOut(
             device_token=token,
             device_id=device_id,
             guest_id=guest_id,
@@ -192,9 +210,9 @@ def retrieve_order(userID: Optional[str] = Query(default=None)):
     cursor, connection = connect_db()
     try:
         if userID is None:
-            cursor.execute("SELECT * FROM orders WHERE status = 'in_progress' ORDER BY timestamp DESC")
+            cursor.execute("SELECT * FROM orders WHERE status = 'pending' ORDER BY timestamp DESC")
         else:
-            cursor.execute("SELECT * FROM orders WHERE user_id = %s AND status = 'in_progress'"
+            cursor.execute("SELECT * FROM orders WHERE user_id = %s AND status = 'pending'"
             "ORDER BY timestamp DESC", (userID,))
         orders_rows = cursor.fetchall()
 
@@ -259,9 +277,37 @@ def retrieve_order(userID: Optional[str] = Query(default=None)):
 def health():
     return {"ok": True}
     
+def get_current_device(authorization: str):
+    '''Perform authorization for the current device and return its tab'''
+
+    if not authorization or not authorization.startswith("Device "):
+        raise HTTPException(status_code=401, detail="Missing device token!")
+    
+    token = authorization.split(" ", 1)[1].strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="Empty device token!")
+    
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    cursor, connection = connect_db()
+    try:
+        cursor.execute(
+            "SELECT id, guest_id, room_id FROM devices WHERE token_hash = %s",
+            (token_hash, )
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=401, detail="Invalid device token!")
+        device_id, guest_id, room_id = row
+        return {
+            "id": device_id,
+            "guest_id": guest_id,
+            "room_id": room_id
+        }
+    finally:
+        disconnect_db(cursor, connection)
 
 @app.post('/order')
-async def create_order(orderIn: order_class.OrderIn):
+async def create_order(orderIn: order_class.OrderIn, device=Depends(get_current_device)):
     '''Create an order with a timestamp and add it to a queue'''
     cursor, connection = connect_db()
     
@@ -280,17 +326,26 @@ async def create_order(orderIn: order_class.OrderIn):
         if missing:
             raise HTTPException(status_code=400, detail=f"Unknown drink ids: {missing}")
         
-        timestamp = datetime.now().isoformat()
-        order = order_class.Order(id=str(ulid.new()), userId=orderIn.userId, 
-                                timestamp=timestamp)
+        # timestamp = datetime.now().isoformat()
+        # get the current tab for this device's room
         cursor.execute(
-                "INSERT INTO orders (id, user_id, timestamp, status) VALUES (%s, %s, %s, %s)",
-                (order.id, order.userId, order.timestamp, order.status)
+            """SELECT id FROM tabs WHERE room_id = %s AND is_open = 1 LIMIT 1""",
+            (device["room_id"], )
+        )
+        tab_row = cursor.fetchone()
+        if not tab_row: 
+            raise HTTPException(status_code=400, detail="No tab open for this room!")
+        tab_id = tab_row[0]
+
+        order_id = str(ulid.new())
+        cursor.execute(
+                "INSERT INTO orders (id, tab_id, device_id, status) VALUES (%s, %s, %s, %s)",
+                (order_id, tab_id, device["id"], "pending")
             )
 
             # Prepare order_items tuples (order_id, drink_id, quantity, unit_price_cents)
         items = [
-            (order.id, drink_id, int(qty), found[drink_id])
+            (order_id, drink_id, int(qty), found[drink_id])
             for drink_id, qty in orderIn.items.items()
         ]
 
@@ -302,7 +357,13 @@ async def create_order(orderIn: order_class.OrderIn):
             items
         )
         connection.commit()
-        return order
+        return {
+            "id": order_id,
+            "tab_id": tab_id,
+            "device_id": device["id"],
+            "status": "pending",
+            "items": orderIn.items
+        }
     except HTTPException:
         connection.rollback()
         raise

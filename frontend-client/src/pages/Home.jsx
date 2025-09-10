@@ -1,7 +1,10 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import toast, { Toaster } from 'react-hot-toast';
 import { getUserId } from "../userId";
 import {API, WS} from "../apiBase";
+import RegistrationDialog from "../components/RegistrationDialog";
+import { getDeviceToken, deleteDeviceToken } from "../lib/auth";
+import { api } from "../lib/api";
 
 window.addEventListener('error', (e) => alert('JS error: ' + e.message));
 function Home() {
@@ -19,6 +22,7 @@ function Home() {
   const userId = getUserId();
   const wsRef = useRef(null);
   const didConnect = useRef(null);
+  const [needsRegistration, setNeedsRegistration] = useState(false);
 
   useEffect(() => {
     if (didConnect.current) return;
@@ -111,6 +115,31 @@ function Home() {
       .finally(() => setLoading(false));
   }
 
+  const checkAuth = useCallback(async () => {
+    const token = getDeviceToken();
+    if (!token) {
+      setNeedsRegistration(true);
+      return;
+    }
+    try {
+      // Only Home requires auth, so we verify here
+      await api("/me/tab"); // lightweight protected ping
+      setNeedsRegistration(false);
+    } catch (e) {
+      if (e.message === "UNAUTHENTICATED") {
+        deleteDeviceToken();
+        setNeedsRegistration(true);
+      } else {
+        // Not auth-related; show your normal UI and maybe a toast
+        setNeedsRegistration(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    checkAuth();
+  }, [checkAuth]);
+
   return (
     
       <div style={{
@@ -123,6 +152,19 @@ function Home() {
         boxSizing: "border-box"
       }}>
         <Toaster position="bottom-right" reverseOrder={false} />
+        <RegistrationDialog
+          open={needsRegistration}
+          onRegistered={() => setNeedsRegistration(false)}
+        />
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+          <button
+            onClick={() => { deleteDeviceToken(); setNeedsRegistration(true); }}
+            style={{ fontSize: 12, padding: "6px 10px", borderRadius: 8, border: "1px solid #2a2f39", background: "#0e1116", color: "#e9ecef", cursor: "pointer" }}
+          >
+            Change device / re-register
+          </button>
+        </div>
+
       <div className="w-full max-w-screen-xl mx-auto px-4">
         <style>{`
           .gridLayout { display: grid; grid-template-columns: 3fr 1fr; gap: 28px; align-items: start; }
@@ -179,7 +221,7 @@ function Home() {
                 <input type="number" min="1" value={smallBeerQty} onChange={e => setSmallBeerQty(e.target.value)} style={{ width: 100, padding: "6px 8px", border: "2px solid #ced4da", borderRadius: 6, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
               </div>
             </div>
-            <button onClick={() => addToCurrentOrder('small_beer', smallBeerQty)} style={{ width: "100%", padding: 10, background: "linear-gradient(90deg,#ffd166,#fca311)", color: "#0b0d12", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>🛒 Add To Order</button>
+            <button onClick={() => needsRegistration ? setNeedsRegistration(true) : addToCurrentOrder('small_beer', smallBeerQty)} disabled={needsRegistration} style={{ width: "100%", padding: 10, background: "linear-gradient(90deg,#ffd166,#fca311)", color: "#0b0d12", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>🛒 Add To Order</button>
           </div>
 
           {/* Large Beer */}

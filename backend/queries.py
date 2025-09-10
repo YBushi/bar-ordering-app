@@ -3,8 +3,7 @@ CREATE TABLE IF NOT EXISTS orders (
   id TEXT PRIMARY KEY,
   tab_id TEXT NOT NULL REFERENCES tabs(id),
   device_id TEXT NOT NULL REFERENCES devices(id),
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  status TEXT NOT NULL DEFAULT "pending",
+  status TEXT NOT NULL DEFAULT 'pending'
 );
 """ 
 
@@ -62,5 +61,5 @@ room_id TEXT NOT NULL REFERENCES rooms(id),
 is_open INTEGER NOT NULL DEFAULT 1,
 opened_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 closed_at TEXT
-)
+);
 """
