@@ -6,6 +6,8 @@ import queries as queries
 from pydantic import BaseModel
 import sqlite3
 import ulid
+import uuid
+from uuid import uuid4
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
 import json
@@ -15,6 +17,7 @@ from psycopg2 import sql
 import traceback
 import traceback, sys
 from fastapi.responses import JSONResponse
+import registration as reg
 
 CLIENT_ORIGIN = os.getenv("CLIENT_ORIGIN", "https://stadium-ordering-app-1.onrender.com")
 STAFF_ORIGIN  = os.getenv("STAFF_ORIGIN",  "https://bar-ordering-app.onrender.com")
@@ -88,6 +91,9 @@ def connect_db():
         run_ddl(cursor, queries.create_drinks_table)
         run_ddl(cursor, queries.create_orders_table)
         run_ddl(cursor, queries.create_orderItems_table)
+        run_ddl(cursor, queries.create_rooms_table)
+        run_ddl(cursor, queries.create_tabs_table)
+        run_ddl(cursor, queries.create_devices_table)
         connection.commit()
         print("Connected to DB!")
     except psycopg2.Error as error:
@@ -101,14 +107,81 @@ def disconnect_db(cursor, connection):
     finally:
         connection.close()
 
+@app.post('/register', response_model=reg.RegisterOut)
+def register(body: reg.RegisterIn):
+    token, token_hash = reg.issue_token()
+    device_id = str(ulid.new())
+
+    cursor, connection = connect_db()
+
+    try:
+        cursor.execute(
+            "SELECT id FROM rooms WHERE number %s",
+            (body.room_number)
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=400, detail="Unknown room number")
+        room_id = row
+
+        # create guest id and insert into guests table
+        guest_id = str(uuid.uuid4())
+        cursor.execute(
+            "INSERT INTO guests (id, name) VALUES (%s, %s) RETURNING id",
+            (guest_id, body.name)
+        
+        )
+        guest_id = cursor.fetchone()[0]
+
+        # create device
+        cursor.execute("""
+                    INSERT INTO devices (id, guest_id, room_id, token_hash)
+                    VALUES (%s, %%s, %s, %s)""",
+                    (device_id, guest_id, room_id, token_hash)
+        )
+        
+        # retrieve or create a tab
+        cursor.execute(
+            "SELECT id FROM tabs WHERE room_id = %s AND is_open = 1 LIMIT 1" 
+        )
+        r = cursor.fetchone()
+        if r:
+            tab_id = r[0]
+        else:
+            tab_id = str(uuid.uuid4())
+            cursor.execute("""
+                INSERT INTO tabs (id, room_id, is_open, opened_at) VALUES,
+                (%s, %s, 1, CURRENT_TIMESTAMP)""",
+                (tab_id, room_id)
+            )
+        connection.commit()
+
+        return reg.RegisterOut(
+            device_token=token,
+            device_id=device_id,
+            guest_id=guest_id,
+            room_id=room_id,
+            tab_id=tab_id
+        )
+    except HTTPException:
+        connection.rollback()
+        raise
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail="Registration Failed!")
+    finally:
+        disconnect_db(cursor, connection)
+
+
+
 @app.patch('/orders/{orderID}')
 async def change_status(orderID: str, background_tasks: BackgroundTasks):
     # change the status to completed
     cursor, connection = connect_db()
     try:
         cursor.execute("UPDATE orders SET status = 'completed' WHERE id = %s", (orderID, ))
-        await ws_manager.broadcast({"type": "ORDER_STATUS", "order": "completed"})
         connection.commit()
+        await ws_manager.broadcast({"type": "ORDER_STATUS", "order": "completed"})
         return {"ok": True}
     finally:
         disconnect_db(cursor, connection)
