@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS orders (
   id TEXT PRIMARY KEY,
   tab_id TEXT NOT NULL REFERENCES tabs(id),
   device_id TEXT NOT NULL REFERENCES devices(id),
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   status TEXT NOT NULL DEFAULT "pending",
 );
 """ 
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS order_items (
 create_rooms_table = """
 CREATE TABLE IF NOT EXISTS rooms (
 id TEXT PRIMARY KEY,
-number TEXT UNIQUE NOT NULL,
+number TEXT UNIQUE NOT NULL
 );
 INSERT INTO rooms (id, number) VALUES
 ('a11', 'A1.1'),
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS devices (
 id TEXT PRIMARY KEY,
 guest_id TEXT NOT NULL REFERENCES guests(id),
 room_id TEXT NOT NULL REFERENCES rooms(id),
-token TEXT NOT NULL,
+token_hash TEXT NOT NULL
 );
 """
 
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS tabs (
 id TEXT PRIMARY KEY,
 room_id TEXT NOT NULL REFERENCES rooms(id),
 is_open INTEGER NOT NULL DEFAULT 1,
-opened_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-closed_at TIMESTAMP
+opened_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+closed_at TEXT
 )
 """
