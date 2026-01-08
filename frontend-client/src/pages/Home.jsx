@@ -191,14 +191,6 @@ function Home() {
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between"
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-5px)";
-            e.currentTarget.style.boxShadow = "0 12px 35px rgba(0,0,0,0.15)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "0 6px 20px rgba(0,0,0,0.1)";
           }}>
             <div style={{ textAlign: "center", marginBottom: "16px" }}>
               <div style={{
