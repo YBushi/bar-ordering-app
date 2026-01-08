@@ -17,7 +17,7 @@ from psycopg2 import sql
 import traceback
 import traceback, sys
 from fastapi.responses import JSONResponse
-import registration as reg
+# import registration as reg
 from pydantic import BaseModel, Field
 import hashlib, secrets
 
