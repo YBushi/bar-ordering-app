@@ -101,6 +101,17 @@ def disconnect_db(cursor, connection):
     finally:
         connection.close()
 
+def delete_old_orders():
+    cursor, connection = connect_db()
+    cursor.execute("""
+        DELETE FROM orders
+        WHERE status = 'completed'
+          AND timestamp < NOW() - INTERVAL '1 days';
+    """)
+    connection.commit()
+    disconnect_db(cursor, connection)
+    
+
 @app.patch('/orders/{orderID}')
 async def change_status(orderID: str, background_tasks: BackgroundTasks):
     # change the status to completed
