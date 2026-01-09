@@ -43,6 +43,14 @@ const BG_SLATE = '#1A1A1A'; // Charcoal
 const TEXT_PRIMARY = '#FFFFFF';
 const TEXT_SECONDARY = '#E5E5E5';
 
+// Helper function to get image path for menu items
+// Images should be named: {item_id}_image.{ext}
+// Example: coca_cola_image.jpg, vodka_image.png, etc.
+const getMenuItemImage = (itemId) => {
+  // Default to .jpg - you can change this or add logic to try multiple extensions
+  return `/menu_photos/${itemId}_image.jpg`;
+};
+
 function Home() {
   const [selectedCategory, setSelectedCategory] = useState('alcoholic');
   const [currentOrder, setCurrentOrder] = useState({});
@@ -202,6 +210,14 @@ function Home() {
   const totalItems = Object.values(currentOrder).reduce((a, b) => a + (b || 0), 0);
   const totalPrice = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
+  const handleImageLoad = (itemId) => {
+    setImageLoaded(prev => ({ ...prev, [itemId]: true }));
+  };
+
+  const handleImageError = (itemId) => {
+    setImageError(prev => ({ ...prev, [itemId]: true }));
+  };
+
   // Close cart when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -329,6 +345,9 @@ function Home() {
       }}>
         {filteredItems.map(item => {
           const quantity = currentOrder[item.id] || 0;
+          const imagePath = getMenuItemImage(item.id);
+          const isLoaded = imageLoaded[item.id];
+          const hasError = imageError[item.id];
           
           return (
             <div
@@ -351,6 +370,57 @@ function Home() {
                 e.currentTarget.style.boxShadow = "none";
               }}
             >
+              {/* Image */}
+              <div style={{
+                width: "100%",
+                height: "200px",
+                background: BG_DARK,
+                position: "relative",
+                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center"
+              }}>
+                {!hasError ? (
+                  <>
+                    <img
+                      src={imagePath}
+                      alt={item.name}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        opacity: isLoaded ? 1 : 0,
+                        transition: "opacity 0.3s ease"
+                      }}
+                      onLoad={() => handleImageLoad(item.id)}
+                      onError={() => handleImageError(item.id)}
+                    />
+                    {!isLoaded && (
+                      <div style={{
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        transform: "translate(-50%, -50%)",
+                        color: TEXT_SECONDARY,
+                        fontSize: "14px"
+                      }}>
+                        Loading...
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{
+                    color: TEXT_SECONDARY,
+                    fontSize: "14px",
+                    textAlign: "center",
+                    padding: "20px"
+                  }}>
+                    No image available
+                  </div>
+                )}
+              </div>
+
               {/* Content */}
               <div style={{ padding: "20px", flex: 1, display: "flex", flexDirection: "column" }}>
                 <div style={{ marginBottom: "12px" }}>
@@ -657,17 +727,32 @@ function Home() {
                         borderRadius: "12px",
                         overflow: "hidden",
                         background: BG_SLATE,
-                        flexShrink: 0
+                        flexShrink: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
                       }}>
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover"
-                          }}
-                        />
+                        {!imageError[item.id] ? (
+                          <img
+                            src={getMenuItemImage(item.id)}
+                            alt={item.name}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover"
+                            }}
+                            onError={() => handleImageError(item.id)}
+                          />
+                        ) : (
+                          <div style={{
+                            color: TEXT_SECONDARY,
+                            fontSize: "10px",
+                            textAlign: "center",
+                            padding: "8px"
+                          }}>
+                            No image
+                          </div>
+                        )}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{
