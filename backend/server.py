@@ -297,7 +297,10 @@ async def create_order(orderIn: order_class.OrderIn, device=Depends(get_current_
         raise
     except Exception as e:
         connection.rollback()
-        raise HTTPException(status_code=500, detail={"type": e.__class__.__name__, "message": str(e)})
+        error_msg = f"{e.__class__.__name__}: {str(e)}"
+        print(f"Error creating order: {error_msg}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=error_msg)
     finally:
         disconnect_db(cursor, connection)
     

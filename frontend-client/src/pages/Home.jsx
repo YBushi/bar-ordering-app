@@ -51,7 +51,7 @@ function Home() {
     }, []);
 
   /* handler for placing an order (posts entire currentOrder items)*/
-  const placeOrder = () => {
+  const placeOrder = async () => {
     const items = Object.fromEntries(
       Object.entries(currentOrder)
         .map(([k, v]) => [k, Number(v)])     
@@ -59,15 +59,21 @@ function Home() {
     );
     if (Object.keys(items).length === 0) {
       toast.error("Choose at least one item");
-      return Promise.reject(new Error("empty order"));
+      throw new Error("empty order");
     }
     const body = { items, userId };
-    return fetch(`${API}/order`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-    })
-      .then(res => { if (!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
-      .then(data => { toast.success("Order has been placed!"); return data; })
-      .catch(err => { console.error('Order failed: ', err); throw err; });
+    try {
+      const data = await api("/order", {
+        method: 'POST',
+        body: JSON.stringify(body)
+      });
+      toast.success("Order has been placed!");
+      return data;
+    } catch (err) {
+      console.error('Order failed: ', err);
+      toast.error(err instanceof Error ? err.message : "Failed to place order");
+      throw err;
+    }
   };
 
   const addToCurrentOrder = (key, qty) => {
@@ -138,272 +144,1043 @@ function Home() {
 
   useEffect(() => {
     checkAuth();
+    retrieveOrders();
   }, [checkAuth]);
 
+  // Drink images - using high-quality Unsplash URLs
+  const drinkImages = {
+    small_beer: "https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=300&fit=crop",
+    large_beer: "https://images.unsplash.com/photo-1571613316887-6f8d5cbf7ef7?w=400&h=300&fit=crop",
+    whiskey: "https://images.unsplash.com/photo-1608847891746-451a0b65b0c1?w=400&h=300&fit=crop",
+    wine: "https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=400&h=300&fit=crop",
+    vodka: "https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=400&h=300&fit=crop",
+    borovicka: "https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=400&h=300&fit=crop"
+  };
+
   return (
-    
+    <div style={{
+      background: "linear-gradient(135deg, #0f1419 0%, #1a1f2e 50%, #0f1419 100%)",
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundAttachment: "fixed",
+      minHeight: "100vh",
+      width: "100%",
+      padding: "24px 16px",
+      boxSizing: "border-box",
+      position: "relative"
+    }}>
+      {/* Background overlay for depth */}
       <div style={{
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundAttachment: "fixed",
-        minHeight: "100vh",
-        width: "100%",
-        padding: 16,
-        boxSizing: "border-box"
-      }}>
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "radial-gradient(circle at 20% 50%, rgba(255, 209, 102, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(252, 163, 17, 0.08) 0%, transparent 50%)",
+        pointerEvents: "none",
+        zIndex: 0
+      }} />
+      
+      <div style={{ position: "relative", zIndex: 1 }}>
         <Toaster position="bottom-right" reverseOrder={false} />
         <RegistrationDialog
           open={needsRegistration}
           onRegistered={() => setNeedsRegistration(false)}
         />
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        
+        {/* Header */}
+        <div style={{ 
+          display: "flex", 
+          justifyContent: "space-between", 
+          alignItems: "center",
+          marginBottom: 32,
+          maxWidth: "1400px",
+          margin: "0 auto 32px",
+          padding: "0 16px"
+        }}>
+          <h1 style={{ 
+            margin: 0, 
+            fontSize: "32px", 
+            fontWeight: 800,
+            background: "linear-gradient(135deg, #ffd166 0%, #fca311 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+            letterSpacing: "-0.5px"
+          }}>
+            🍻 Bar Menu
+          </h1>
           <button
             onClick={() => { deleteDeviceToken(); setNeedsRegistration(true); }}
-            style={{ fontSize: 12, padding: "6px 10px", borderRadius: 8, border: "1px solid #2a2f39", background: "#0e1116", color: "#e9ecef", cursor: "pointer" }}
+            style={{ 
+              fontSize: 13, 
+              padding: "8px 16px", 
+              borderRadius: 10, 
+              border: "1px solid rgba(255, 255, 255, 0.1)", 
+              background: "rgba(18, 20, 24, 0.8)",
+              backdropFilter: "blur(10px)",
+              color: "#e9ecef", 
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              fontWeight: 500
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(18, 20, 24, 0.8)";
+              e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+            }}
           >
-            Change device / re-register
+            Change Device
           </button>
         </div>
 
       <div className="w-full max-w-screen-xl mx-auto px-4">
         <style>{`
-          .gridLayout { display: grid; grid-template-columns: 3fr 1fr; gap: 28px; align-items: start; }
-          .drinksGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; }
+          .gridLayout { display: grid; grid-template-columns: 3fr 1fr; gap: 32px; align-items: start; }
+          .drinksGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
           @media (max-width: 1024px) { .gridLayout { grid-template-columns: 1fr; } }
+          @media (max-width: 768px) { .drinksGrid { grid-template-columns: repeat(2, 1fr); } }
           @media (max-width: 640px) { .drinksGrid { grid-template-columns: 1fr; } }
+          .drinkCard {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          }
+          .drinkCard:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+          }
         `}</style>
-        <div className="gridLayout" style={{ width: "100%", marginBottom: 24 }}>
+        <div className="gridLayout" style={{ width: "100%", marginBottom: 32 }}>
           <div>
             <div className="drinksGrid">
           {/* Small Beer */}
-          <div className="card" style={{ 
-            width: "90%",
+          <div className="drinkCard" style={{ 
+            width: "100%",
             minWidth: "0",
-            height: "260px",
-            background: "#121418",
+            background: "rgba(18, 20, 24, 0.95)",
+            backdropFilter: "blur(20px)",
             color: "#e9ecef",
-            border: "1px solid #1e222a",
-            borderRadius: 12,
-            padding: 12,
-            boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-            transition: "transform 0.2s ease, box-shadow 0.2s ease",
-            cursor: "pointer",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            borderRadius: 20,
+            overflow: "hidden",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
             display: "flex",
             flexDirection: "column",
-            justifyContent: "space-between"
+            cursor: "pointer"
           }}>
-            <div style={{ textAlign: "center", marginBottom: "16px" }}>
+            {/* Image Header */}
+            <div style={{
+              width: "100%",
+              height: "180px",
+              backgroundImage: `url(${drinkImages.small_beer})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              position: "relative",
+              overflow: "hidden"
+            }}>
               <div style={{
-                width: "64px",
-                height: "64px",
-                margin: "0 auto 10px",
-                background: "linear-gradient(45deg, #ffd700, #ffed4e)",
-                borderRadius: "50%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "28px",
-                boxShadow: "0 3px 10px rgba(255, 215, 0, 0.3)"
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)"
+              }} />
+              <div style={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                padding: "6px 12px",
+                background: "rgba(255, 209, 102, 0.95)",
+                backdropFilter: "blur(10px)",
+                color: "#0b0d12",
+                borderRadius: 20,
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
               }}>
-                🍺
-              </div>
-              <h2 style={{ margin: 0, color: "#e9ecef", fontSize: 20, fontWeight: 700 }}>Small Beer</h2>
-              <div style={{ marginTop: 8, display: "inline-block", padding: "4px 10px", background: "#fff3cd", color: "#856404", border: "1px solid #ffeeba", borderRadius: 999, fontSize: 12, fontWeight: 600 }}>{String(PRICES.small_beer).replace('.', ',')} €</div>
-              <div style={{ marginTop: 8, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}>
-                <input type="number" min="1" value={smallBeerQty} onChange={e => setSmallBeerQty(e.target.value)} style={{ width: 100, padding: "6px 8px", border: "2px solid #ced4da", borderRadius: 6, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+                {String(PRICES.small_beer).replace('.', ',')} €
               </div>
             </div>
-            <button onClick={() => needsRegistration ? setNeedsRegistration(true) : addToCurrentOrder('small_beer', smallBeerQty)} disabled={needsRegistration} style={{ width: "100%", padding: 10, background: "linear-gradient(90deg,#ffd166,#fca311)", color: "#0b0d12", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>🛒 Add To Order</button>
+            
+            {/* Content */}
+            <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
+              <div>
+                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px" }}>Small Beer</h2>
+                <p style={{ margin: 0, color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>0.3L • Fresh & Crisp</p>
+              </div>
+              
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={smallBeerQty} 
+                  onChange={e => setSmallBeerQty(e.target.value)} 
+                  style={{ 
+                    flex: 1,
+                    padding: "10px 12px", 
+                    border: "2px solid rgba(255, 255, 255, 0.1)", 
+                    borderRadius: 10, 
+                    fontSize: 15, 
+                    outline: "none", 
+                    boxSizing: "border-box",
+                    background: "rgba(255, 255, 255, 0.05)",
+                    color: "#e9ecef",
+                    fontWeight: 600,
+                    transition: "all 0.2s ease"
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255, 209, 102, 0.5)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                  }}
+                />
+              </div>
+              
+              <button 
+                onClick={() => needsRegistration ? setNeedsRegistration(true) : addToCurrentOrder('small_beer', smallBeerQty)} 
+                disabled={needsRegistration} 
+                style={{ 
+                  width: "100%", 
+                  padding: "14px", 
+                  background: "linear-gradient(135deg, #ffd166 0%, #fca311 100%)",
+                  color: "#0b0d12", 
+                  border: "none", 
+                  borderRadius: 12, 
+                  fontSize: 15, 
+                  fontWeight: 700, 
+                  cursor: needsRegistration ? "not-allowed" : "pointer",
+                  transition: "all 0.2s ease",
+                  boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)",
+                  opacity: needsRegistration ? 0.5 : 1
+                }}
+                onMouseEnter={(e) => {
+                  if (!needsRegistration) {
+                    e.currentTarget.style.transform = "scale(1.02)";
+                    e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 209, 102, 0.4)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 209, 102, 0.3)";
+                }}
+              >
+                🛒 Add To Order
+              </button>
+            </div>
           </div>
 
           {/* Large Beer */}
-          <div className="card" style={{ 
-            width: "90%",
+          <div className="drinkCard" style={{ 
+            width: "100%",
             minWidth: "0",
-            height: "260px",
-            background: "#121418",
+            background: "rgba(18, 20, 24, 0.95)",
+            backdropFilter: "blur(20px)",
             color: "#e9ecef",
-            border: "1px solid #1e222a",
-            borderRadius: 12,
-            padding: 12,
-            boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-            transition: "transform 0.2s ease, box-shadow 0.2s ease",
-            cursor: "pointer",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            borderRadius: 20,
+            overflow: "hidden",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
             display: "flex",
             flexDirection: "column",
-            justifyContent: "space-between"
+            cursor: "pointer"
           }}>
-            <div style={{ textAlign: "center", marginBottom: "16px" }}>
-              <div style={{ width: 64, height: 64, margin: "0 auto 10px", background: "linear-gradient(45deg, #dc3545, #fd7e14)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "0 3px 10px rgba(220, 53, 69, 0.3)" }}>🍺</div>
-              <h2 style={{ margin: 0, color: "#e9ecef", fontSize: 20, fontWeight: 700 }}>Large Beer</h2>
-              <div style={{ marginTop: 8, display: "inline-block", padding: "4px 10px", background: "#fff3cd", color: "#856404", border: "1px solid #ffeeba", borderRadius: 999, fontSize: 12, fontWeight: 600 }}>{String(PRICES.large_beer).replace('.', ',')} €</div>
-              <div style={{ marginTop: 8, display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}>
-                <input type="number" min="1" value={largeBeerQty} onChange={e => setLargeBeerQty(e.target.value)} style={{ width: 100, padding: "6px 8px", border: "2px solid #ced4da", borderRadius: 6, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+            <div style={{
+              width: "100%",
+              height: "180px",
+              backgroundImage: `url(${drinkImages.large_beer})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              position: "relative",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)"
+              }} />
+              <div style={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                padding: "6px 12px",
+                background: "rgba(255, 209, 102, 0.95)",
+                backdropFilter: "blur(10px)",
+                color: "#0b0d12",
+                borderRadius: 20,
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
+              }}>
+                {String(PRICES.large_beer).replace('.', ',')} €
               </div>
             </div>
-            <button onClick={() => addToCurrentOrder('large_beer', largeBeerQty)} style={{ width: "100%", padding: 10, background: "linear-gradient(90deg,#ffd166,#fca311)", color: "#0b0d12", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>🛒 Add To Order</button>
+            <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
+              <div>
+                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px" }}>Large Beer</h2>
+                <p style={{ margin: 0, color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>0.5L • Premium Quality</p>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={largeBeerQty} 
+                  onChange={e => setLargeBeerQty(e.target.value)} 
+                  style={{ 
+                    flex: 1,
+                    padding: "10px 12px", 
+                    border: "2px solid rgba(255, 255, 255, 0.1)", 
+                    borderRadius: 10, 
+                    fontSize: 15, 
+                    outline: "none", 
+                    boxSizing: "border-box",
+                    background: "rgba(255, 255, 255, 0.05)",
+                    color: "#e9ecef",
+                    fontWeight: 600,
+                    transition: "all 0.2s ease"
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255, 209, 102, 0.5)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                  }}
+                />
+              </div>
+              <button 
+                onClick={() => addToCurrentOrder('large_beer', largeBeerQty)} 
+                style={{ 
+                  width: "100%", 
+                  padding: "14px", 
+                  background: "linear-gradient(135deg, #ffd166 0%, #fca311 100%)",
+                  color: "#0b0d12", 
+                  border: "none", 
+                  borderRadius: 12, 
+                  fontSize: 15, 
+                  fontWeight: 700, 
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.02)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 209, 102, 0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 209, 102, 0.3)";
+                }}
+              >
+                🛒 Add To Order
+              </button>
+            </div>
           </div>
 
           {/* Whiskey */}
-          <div className="card" style={{ width: "90%", minWidth: 0, height: 260, background: "#121418", color: "#e9ecef", border: "1px solid #1e222a", borderRadius: 12, padding: 12, boxShadow: "0 10px 30px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ width: 64, height: 64, margin: "0 auto 10px", background: "linear-gradient(45deg, #8d5524, #c97b45)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "0 3px 10px rgba(201, 123, 69, 0.35)" }}>🥃</div>
-              <h2 style={{ margin: 0, fontSize: 20, color: "#e9ecef", fontWeight: 700 }}>Whiskey</h2>
-              <div style={{ marginTop: 8, display: "inline-block", padding: "4px 10px", background: "#fff3cd", color: "#856404", border: "1px solid #ffeeba", borderRadius: 999, fontSize: 12, fontWeight: 600 }}>{String(PRICES.whiskey).replace('.', ',')} €</div>
-              <div style={{ marginTop: 8, display: "flex", justifyContent: "center", gap: 8 }}>
-                <input type="number" min="1" value={whiskeyQty} onChange={(e) => setWhiskeyQty(e.target.value)} style={{ width: 100, padding: "6px 8px", border: "2px solid #ced4da", borderRadius: 6, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+          <div className="drinkCard" style={{ 
+            width: "100%",
+            minWidth: "0",
+            background: "rgba(18, 20, 24, 0.95)",
+            backdropFilter: "blur(20px)",
+            color: "#e9ecef",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            borderRadius: 20,
+            overflow: "hidden",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+            display: "flex",
+            flexDirection: "column",
+            cursor: "pointer"
+          }}>
+            <div style={{
+              width: "100%",
+              height: "180px",
+              backgroundImage: `url(${drinkImages.whiskey})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              position: "relative",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)"
+              }} />
+              <div style={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                padding: "6px 12px",
+                background: "rgba(255, 209, 102, 0.95)",
+                backdropFilter: "blur(10px)",
+                color: "#0b0d12",
+                borderRadius: 20,
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
+              }}>
+                {String(PRICES.whiskey).replace('.', ',')} €
               </div>
             </div>
-            <button onClick={() => addToCurrentOrder('whiskey', whiskeyQty)} style={{ width: "100%", padding: 10, background: "linear-gradient(90deg,#ffd166,#fca311)", color: "#0b0d12", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>🛒 Add To Order</button>
+            <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
+              <div>
+                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px" }}>Whiskey</h2>
+                <p style={{ margin: 0, color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>Premium • Aged to Perfection</p>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={whiskeyQty} 
+                  onChange={(e) => setWhiskeyQty(e.target.value)} 
+                  style={{ 
+                    flex: 1,
+                    padding: "10px 12px", 
+                    border: "2px solid rgba(255, 255, 255, 0.1)", 
+                    borderRadius: 10, 
+                    fontSize: 15, 
+                    outline: "none", 
+                    boxSizing: "border-box",
+                    background: "rgba(255, 255, 255, 0.05)",
+                    color: "#e9ecef",
+                    fontWeight: 600,
+                    transition: "all 0.2s ease"
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255, 209, 102, 0.5)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                  }}
+                />
+              </div>
+              <button 
+                onClick={() => addToCurrentOrder('whiskey', whiskeyQty)} 
+                style={{ 
+                  width: "100%", 
+                  padding: "14px", 
+                  background: "linear-gradient(135deg, #ffd166 0%, #fca311 100%)",
+                  color: "#0b0d12", 
+                  border: "none", 
+                  borderRadius: 12, 
+                  fontSize: 15, 
+                  fontWeight: 700, 
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.02)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 209, 102, 0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 209, 102, 0.3)";
+                }}
+              >
+                🛒 Add To Order
+              </button>
+            </div>
           </div>
 
           {/* Vodka */}
-          <div className="card" style={{ width: "90%", minWidth: 0, height: 260, background: "#121418", color: "#e9ecef", border: "1px solid #1e222a", borderRadius: 12, padding: 12, boxShadow: "0 10px 30px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ width: 64, height: 64, margin: "0 auto 10px", background: "linear-gradient(45deg, #a1c4fd, #c2e9fb)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "0 3px 10px rgba(161,196,253,0.35)" }}>🍸</div>
-              <h2 style={{ margin: 0, fontSize: 20, color: "#e9ecef", fontWeight: 700 }}>Vodka</h2>
-              <div style={{ marginTop: 8, display: "inline-block", padding: "4px 10px", background: "#fff3cd", color: "#856404", border: "1px solid #ffeeba", borderRadius: 999, fontSize: 12, fontWeight: 600 }}>{String(PRICES.vodka).replace('.', ',')} €</div>
-              <div style={{ marginTop: 8, display: "flex", justifyContent: "center", gap: 8 }}>
-                <input type="number" min="1" value={vodkaQty} onChange={(e) => setVodkaQty(e.target.value)} style={{ width: 100, padding: "6px 8px", border: "2px solid #ced4da", borderRadius: 6, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+          <div className="drinkCard" style={{ 
+            width: "100%",
+            minWidth: "0",
+            background: "rgba(18, 20, 24, 0.95)",
+            backdropFilter: "blur(20px)",
+            color: "#e9ecef",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            borderRadius: 20,
+            overflow: "hidden",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+            display: "flex",
+            flexDirection: "column",
+            cursor: "pointer"
+          }}>
+            <div style={{
+              width: "100%",
+              height: "180px",
+              backgroundImage: `url(${drinkImages.vodka})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              position: "relative",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)"
+              }} />
+              <div style={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                padding: "6px 12px",
+                background: "rgba(255, 209, 102, 0.95)",
+                backdropFilter: "blur(10px)",
+                color: "#0b0d12",
+                borderRadius: 20,
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
+              }}>
+                {String(PRICES.vodka).replace('.', ',')} €
               </div>
             </div>
-            <button onClick={() => addToCurrentOrder('vodka', vodkaQty)} style={{ width: "100%", padding: 10, background: "linear-gradient(90deg,#ffd166,#fca311)", color: "#0b0d12", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>🛒 Add To Order</button>
+            <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
+              <div>
+                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px" }}>Vodka</h2>
+                <p style={{ margin: 0, color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>Premium • Smooth & Clean</p>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={vodkaQty} 
+                  onChange={(e) => setVodkaQty(e.target.value)} 
+                  style={{ 
+                    flex: 1,
+                    padding: "10px 12px", 
+                    border: "2px solid rgba(255, 255, 255, 0.1)", 
+                    borderRadius: 10, 
+                    fontSize: 15, 
+                    outline: "none", 
+                    boxSizing: "border-box",
+                    background: "rgba(255, 255, 255, 0.05)",
+                    color: "#e9ecef",
+                    fontWeight: 600,
+                    transition: "all 0.2s ease"
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255, 209, 102, 0.5)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                  }}
+                />
+              </div>
+              <button 
+                onClick={() => addToCurrentOrder('vodka', vodkaQty)} 
+                style={{ 
+                  width: "100%", 
+                  padding: "14px", 
+                  background: "linear-gradient(135deg, #ffd166 0%, #fca311 100%)",
+                  color: "#0b0d12", 
+                  border: "none", 
+                  borderRadius: 12, 
+                  fontSize: 15, 
+                  fontWeight: 700, 
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.02)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 209, 102, 0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 209, 102, 0.3)";
+                }}
+              >
+                🛒 Add To Order
+              </button>
+            </div>
           </div>
 
           {/* Wine */}
-          <div className="card" style={{ width: "90%", minWidth: 0, height: 260, background: "#121418", color: "#e9ecef", border: "1px solid #1e222a", borderRadius: 12, padding: 12, boxShadow: "0 10px 30px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ width: 64, height: 64, margin: "0 auto 10px", background: "linear-gradient(45deg, #ff6b6b, #f06595)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "0 3px 10px rgba(240, 101, 149, 0.35)" }}>🍷</div>
-              <h2 style={{ margin: 0, fontSize: 20, color: "#e9ecef", fontWeight: 700 }}>Wine</h2>
-              <div style={{ marginTop: 8, display: "inline-block", padding: "4px 10px", background: "#fff3cd", color: "#856404", border: "1px solid #ffeeba", borderRadius: 999, fontSize: 12, fontWeight: 600 }}>{String(PRICES.wine).replace('.', ',')} €</div>
-              <div style={{ marginTop: 8, display: "flex", justifyContent: "center", gap: 8 }}>
-                <input type="number" min="1" value={wineQty} onChange={(e) => setWineQty(e.target.value)} style={{ width: 100, padding: "6px 8px", border: "2px solid #ced4da", borderRadius: 6, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+          <div className="drinkCard" style={{ 
+            width: "100%",
+            minWidth: "0",
+            background: "rgba(18, 20, 24, 0.95)",
+            backdropFilter: "blur(20px)",
+            color: "#e9ecef",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            borderRadius: 20,
+            overflow: "hidden",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+            display: "flex",
+            flexDirection: "column",
+            cursor: "pointer"
+          }}>
+            <div style={{
+              width: "100%",
+              height: "180px",
+              backgroundImage: `url(${drinkImages.wine})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              position: "relative",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)"
+              }} />
+              <div style={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                padding: "6px 12px",
+                background: "rgba(255, 209, 102, 0.95)",
+                backdropFilter: "blur(10px)",
+                color: "#0b0d12",
+                borderRadius: 20,
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
+              }}>
+                {String(PRICES.wine).replace('.', ',')} €
               </div>
             </div>
-            <button onClick={() => addToCurrentOrder('wine', wineQty)} style={{ width: "100%", padding: 10, background: "linear-gradient(90deg,#ffd166,#fca311)", color: "#0b0d12", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>🛒 Add To Order</button>
+            <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
+              <div>
+                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px" }}>Wine</h2>
+                <p style={{ margin: 0, color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>Fine Selection • Rich & Elegant</p>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={wineQty} 
+                  onChange={(e) => setWineQty(e.target.value)} 
+                  style={{ 
+                    flex: 1,
+                    padding: "10px 12px", 
+                    border: "2px solid rgba(255, 255, 255, 0.1)", 
+                    borderRadius: 10, 
+                    fontSize: 15, 
+                    outline: "none", 
+                    boxSizing: "border-box",
+                    background: "rgba(255, 255, 255, 0.05)",
+                    color: "#e9ecef",
+                    fontWeight: 600,
+                    transition: "all 0.2s ease"
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255, 209, 102, 0.5)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                  }}
+                />
+              </div>
+              <button 
+                onClick={() => addToCurrentOrder('wine', wineQty)} 
+                style={{ 
+                  width: "100%", 
+                  padding: "14px", 
+                  background: "linear-gradient(135deg, #ffd166 0%, #fca311 100%)",
+                  color: "#0b0d12", 
+                  border: "none", 
+                  borderRadius: 12, 
+                  fontSize: 15, 
+                  fontWeight: 700, 
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.02)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 209, 102, 0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 209, 102, 0.3)";
+                }}
+              >
+                🛒 Add To Order
+              </button>
+            </div>
           </div>
 
           {/* Borovička */}
-          <div className="card" style={{ width: "90%", minWidth: 0, height: 260, background: "#121418", color: "#e9ecef", border: "1px solid #1e222a", borderRadius: 12, padding: 12, boxShadow: "0 10px 30px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-            <div style={{ textAlign: "center" }}>
-              <div style={{ width: 64, height: 64, margin: "0 auto 10px", background: "linear-gradient(45deg, #74c69d, #34a853)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, boxShadow: "0 3px 10px rgba(52,168,83,0.35)" }}>🌿</div>
-              <h2 style={{ margin: 0, fontSize: 20, color: "#e9ecef", fontWeight: 700 }}>Borovička</h2>
-              <div style={{ marginTop: 8, display: "inline-block", padding: "4px 10px", background: "#fff3cd", color: "#856404", border: "1px solid #ffeeba", borderRadius: 999, fontSize: 12, fontWeight: 600 }}>{String(PRICES.borovicka).replace('.', ',')} €</div>
-              <div style={{ marginTop: 8, display: "flex", justifyContent: "center", gap: 8 }}>
-                <input type="number" min="1" value={borovickaQty} onChange={(e) => setBorovickaQty(e.target.value)} style={{ width: 100, padding: "6px 8px", border: "2px solid #ced4da", borderRadius: 6, fontSize: 14, outline: "none", boxSizing: "border-box" }} />
+          <div className="drinkCard" style={{ 
+            width: "100%",
+            minWidth: "0",
+            background: "rgba(18, 20, 24, 0.95)",
+            backdropFilter: "blur(20px)",
+            color: "#e9ecef",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            borderRadius: 20,
+            overflow: "hidden",
+            boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+            display: "flex",
+            flexDirection: "column",
+            cursor: "pointer"
+          }}>
+            <div style={{
+              width: "100%",
+              height: "180px",
+              backgroundImage: `url(${drinkImages.borovicka})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              position: "relative",
+              overflow: "hidden"
+            }}>
+              <div style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)"
+              }} />
+              <div style={{
+                position: "absolute",
+                top: 12,
+                right: 12,
+                padding: "6px 12px",
+                background: "rgba(255, 209, 102, 0.95)",
+                backdropFilter: "blur(10px)",
+                color: "#0b0d12",
+                borderRadius: 20,
+                fontSize: 14,
+                fontWeight: 700,
+                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
+              }}>
+                {String(PRICES.borovicka).replace('.', ',')} €
               </div>
             </div>
-            <button onClick={() => addToCurrentOrder('borovicka', borovickaQty)} style={{ width: "100%", padding: 10, background: "linear-gradient(90deg,#ffd166,#fca311)", color: "#0b0d12", border: "none", borderRadius: 6, fontSize: 14, fontWeight: 800, cursor: "pointer" }}>🛒 Add To Order</button>
+            <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
+              <div>
+                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px" }}>Borovička</h2>
+                <p style={{ margin: 0, color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>Traditional • Juniper Flavored</p>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={borovickaQty} 
+                  onChange={(e) => setBorovickaQty(e.target.value)} 
+                  style={{ 
+                    flex: 1,
+                    padding: "10px 12px", 
+                    border: "2px solid rgba(255, 255, 255, 0.1)", 
+                    borderRadius: 10, 
+                    fontSize: 15, 
+                    outline: "none", 
+                    boxSizing: "border-box",
+                    background: "rgba(255, 255, 255, 0.05)",
+                    color: "#e9ecef",
+                    fontWeight: 600,
+                    transition: "all 0.2s ease"
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255, 209, 102, 0.5)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                    e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                  }}
+                />
+              </div>
+              <button 
+                onClick={() => addToCurrentOrder('borovicka', borovickaQty)} 
+                style={{ 
+                  width: "100%", 
+                  padding: "14px", 
+                  background: "linear-gradient(135deg, #ffd166 0%, #fca311 100%)",
+                  color: "#0b0d12", 
+                  border: "none", 
+                  borderRadius: 12, 
+                  fontSize: 15, 
+                  fontWeight: 700, 
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                  boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "scale(1.02)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 209, 102, 0.4)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "scale(1)";
+                  e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 209, 102, 0.3)";
+                }}
+              >
+                🛒 Add To Order
+              </button>
+            </div>
           </div>
             </div>
           </div>
           <div className="orderCol" style={{ position: "sticky", top: 24, paddingRight: 16 }}>
-            <div className="card" style={{ width: "100%", minWidth: 0, background: "#121418", color: "#e9ecef", border: "1px solid #1e222a", borderRadius: 12, boxShadow: "0 10px 30px rgba(0,0,0,0.2)", padding: 16, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div className="card" style={{ 
+              width: "100%", 
+              minWidth: 0, 
+              background: "rgba(18, 20, 24, 0.95)",
+              backdropFilter: "blur(20px)",
+              color: "#e9ecef", 
+              border: "1px solid rgba(255, 255, 255, 0.1)", 
+              borderRadius: 20, 
+              boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)", 
+              padding: 24, 
+              display: "flex", 
+              flexDirection: "column", 
+              justifyContent: "space-between" 
+            }}>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <span>🛒</span>
-              <strong>Your Order</strong>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              <div style={{
+                width: 40,
+                height: 40,
+                borderRadius: 12,
+                background: "linear-gradient(135deg, #ffd166 0%, #fca311 100%)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 20,
+                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
+              }}>
+                🛒
+              </div>
+              <strong style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.3px" }}>Your Order</strong>
             </div>
-            <div style={{ fontSize: 14, color: "#c9ced6" }}>
+            <div style={{ fontSize: 15, color: "#c9ced6" }}>
               {currentOrder.small_beer > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ flex: 1 }}>Small Beer (0.3L)</span>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, width: 140 }}>
-                    <button onClick={() => decrementItem('small_beer')} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #2a2f39', background: '#0e1116', color: '#e9ecef', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>-</button>
-                    <span style={{ minWidth: 36, textAlign: 'center' }}>{currentOrder.small_beer}</span>
-                    <button onClick={() => incrementItem('small_beer')} style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'linear-gradient(90deg,#ffd166,#fca311)', color: '#0b0d12', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, padding: "12px", background: "rgba(255, 255, 255, 0.03)", borderRadius: 12, border: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                  <span style={{ flex: 1, fontWeight: 500 }}>Small Beer</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, width: 120 }}>
+                    <button 
+                      onClick={() => decrementItem('small_beer')} 
+                      style={{ 
+                        width: 32, 
+                        height: 32, 
+                        borderRadius: 8, 
+                        border: '1px solid rgba(255, 255, 255, 0.1)', 
+                        background: 'rgba(255, 255, 255, 0.05)', 
+                        color: '#e9ecef', 
+                        cursor: 'pointer', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        fontSize: 16,
+                        fontWeight: 600,
+                        transition: "all 0.2s ease"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                        e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                        e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+                      }}
+                    >-</button>
+                    <span style={{ minWidth: 40, textAlign: 'center', fontWeight: 600, fontSize: 15 }}>{currentOrder.small_beer}</span>
+                    <button 
+                      onClick={() => incrementItem('small_beer')} 
+                      style={{ 
+                        width: 32, 
+                        height: 32, 
+                        borderRadius: 8, 
+                        border: 'none', 
+                        background: 'linear-gradient(135deg, #ffd166 0%, #fca311 100%)', 
+                        color: '#0b0d12', 
+                        cursor: 'pointer', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        fontSize: 16,
+                        fontWeight: 700,
+                        transition: "all 0.2s ease",
+                        boxShadow: "0 2px 8px rgba(255, 209, 102, 0.3)"
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = "scale(1.1)";
+                        e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 209, 102, 0.4)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = "scale(1)";
+                        e.currentTarget.style.boxShadow = "0 2px 8px rgba(255, 209, 102, 0.3)";
+                      }}
+                    >+</button>
                   </div>
                 </div>
               )}
               {currentOrder.large_beer > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ flex: 1 }}>Large Beer (0.5L)</span>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, width: 140 }}>
-                    <button onClick={() => decrementItem('large_beer')} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #2a2f39', background: '#0e1116', color: '#e9ecef', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>-</button>
-                    <span style={{ minWidth: 36, textAlign: 'center' }}>{currentOrder.large_beer}</span>
-                    <button onClick={() => incrementItem('large_beer')} style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'linear-gradient(90deg,#ffd166,#fca311)', color: '#0b0d12', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, padding: "12px", background: "rgba(255, 255, 255, 0.03)", borderRadius: 12, border: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                  <span style={{ flex: 1, fontWeight: 500 }}>Large Beer</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, width: 120 }}>
+                    <button onClick={() => decrementItem('large_beer')} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.1)', background: 'rgba(255, 255, 255, 0.05)', color: '#e9ecef', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 600, transition: "all 0.2s ease" }} onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)"; e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)"; e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)"; }}>-</button>
+                    <span style={{ minWidth: 40, textAlign: 'center', fontWeight: 600, fontSize: 15 }}>{currentOrder.large_beer}</span>
+                    <button onClick={() => incrementItem('large_beer')} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #ffd166 0%, #fca311 100%)', color: '#0b0d12', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, transition: "all 0.2s ease", boxShadow: "0 2px 8px rgba(255, 209, 102, 0.3)" }} onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 209, 102, 0.4)"; }} onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(255, 209, 102, 0.3)"; }}>+</button>
                   </div>
                 </div>
               )}
               {currentOrder.whiskey > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ flex: 1 }}>Whiskey</span>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, width: 140 }}>
-                    <button onClick={() => decrementItem('whiskey')} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #2a2f39', background: '#0e1116', color: '#e9ecef', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>-</button>
-                    <span style={{ minWidth: 36, textAlign: 'center' }}>{currentOrder.whiskey}</span>
-                    <button onClick={() => incrementItem('whiskey')} style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'linear-gradient(90deg,#ffd166,#fca311)', color: '#0b0d12', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, padding: "12px", background: "rgba(255, 255, 255, 0.03)", borderRadius: 12, border: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                  <span style={{ flex: 1, fontWeight: 500 }}>Whiskey</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, width: 120 }}>
+                    <button onClick={() => decrementItem('whiskey')} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.1)', background: 'rgba(255, 255, 255, 0.05)', color: '#e9ecef', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 600, transition: "all 0.2s ease" }} onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)"; e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)"; e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)"; }}>-</button>
+                    <span style={{ minWidth: 40, textAlign: 'center', fontWeight: 600, fontSize: 15 }}>{currentOrder.whiskey}</span>
+                    <button onClick={() => incrementItem('whiskey')} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #ffd166 0%, #fca311 100%)', color: '#0b0d12', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, transition: "all 0.2s ease", boxShadow: "0 2px 8px rgba(255, 209, 102, 0.3)" }} onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 209, 102, 0.4)"; }} onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(255, 209, 102, 0.3)"; }}>+</button>
                   </div>
                 </div>
               )}
               {currentOrder.vodka > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ flex: 1 }}>Vodka</span>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, width: 140 }}>
-                    <button onClick={() => decrementItem('vodka')} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #2a2f39', background: '#0e1116', color: '#e9ecef', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>-</button>
-                    <span style={{ minWidth: 36, textAlign: 'center' }}>{currentOrder.vodka}</span>
-                    <button onClick={() => incrementItem('vodka')} style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'linear-gradient(90deg,#ffd166,#fca311)', color: '#0b0d12', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, padding: "12px", background: "rgba(255, 255, 255, 0.03)", borderRadius: 12, border: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                  <span style={{ flex: 1, fontWeight: 500 }}>Vodka</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, width: 120 }}>
+                    <button onClick={() => decrementItem('vodka')} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.1)', background: 'rgba(255, 255, 255, 0.05)', color: '#e9ecef', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 600, transition: "all 0.2s ease" }} onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)"; e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)"; e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)"; }}>-</button>
+                    <span style={{ minWidth: 40, textAlign: 'center', fontWeight: 600, fontSize: 15 }}>{currentOrder.vodka}</span>
+                    <button onClick={() => incrementItem('vodka')} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #ffd166 0%, #fca311 100%)', color: '#0b0d12', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, transition: "all 0.2s ease", boxShadow: "0 2px 8px rgba(255, 209, 102, 0.3)" }} onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 209, 102, 0.4)"; }} onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(255, 209, 102, 0.3)"; }}>+</button>
                   </div>
                 </div>
               )}
               {currentOrder.wine > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ flex: 1 }}>Wine</span>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, width: 140 }}>
-                    <button onClick={() => decrementItem('wine')} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #2a2f39', background: '#0e1116', color: '#e9ecef', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>-</button>
-                    <span style={{ minWidth: 36, textAlign: 'center' }}>{currentOrder.wine}</span>
-                    <button onClick={() => incrementItem('wine')} style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'linear-gradient(90deg,#ffd166,#fca311)', color: '#0b0d12', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, padding: "12px", background: "rgba(255, 255, 255, 0.03)", borderRadius: 12, border: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                  <span style={{ flex: 1, fontWeight: 500 }}>Wine</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, width: 120 }}>
+                    <button onClick={() => decrementItem('wine')} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.1)', background: 'rgba(255, 255, 255, 0.05)', color: '#e9ecef', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 600, transition: "all 0.2s ease" }} onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)"; e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)"; e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)"; }}>-</button>
+                    <span style={{ minWidth: 40, textAlign: 'center', fontWeight: 600, fontSize: 15 }}>{currentOrder.wine}</span>
+                    <button onClick={() => incrementItem('wine')} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #ffd166 0%, #fca311 100%)', color: '#0b0d12', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, transition: "all 0.2s ease", boxShadow: "0 2px 8px rgba(255, 209, 102, 0.3)" }} onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 209, 102, 0.4)"; }} onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(255, 209, 102, 0.3)"; }}>+</button>
                   </div>
                 </div>
               )}
               {currentOrder.borovicka > 0 && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <span style={{ flex: 1 }}>Borovička</span>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8, width: 140 }}>
-                    <button onClick={() => decrementItem('borovicka')} style={{ width: 26, height: 26, borderRadius: 6, border: '1px solid #2a2f39', background: '#0e1116', color: '#e9ecef', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>-</button>
-                    <span style={{ minWidth: 36, textAlign: 'center' }}>{currentOrder.borovicka}</span>
-                    <button onClick={() => incrementItem('borovicka')} style={{ width: 26, height: 26, borderRadius: 6, border: 'none', background: 'linear-gradient(90deg,#ffd166,#fca311)', color: '#0b0d12', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, padding: "12px", background: "rgba(255, 255, 255, 0.03)", borderRadius: 12, border: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                  <span style={{ flex: 1, fontWeight: 500 }}>Borovička</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10, width: 120 }}>
+                    <button onClick={() => decrementItem('borovicka')} style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid rgba(255, 255, 255, 0.1)', background: 'rgba(255, 255, 255, 0.05)', color: '#e9ecef', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 600, transition: "all 0.2s ease" }} onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)"; e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)"; }} onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)"; e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)"; }}>-</button>
+                    <span style={{ minWidth: 40, textAlign: 'center', fontWeight: 600, fontSize: 15 }}>{currentOrder.borovicka}</span>
+                    <button onClick={() => incrementItem('borovicka')} style={{ width: 32, height: 32, borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #ffd166 0%, #fca311 100%)', color: '#0b0d12', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, transition: "all 0.2s ease", boxShadow: "0 2px 8px rgba(255, 209, 102, 0.3)" }} onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.1)"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 209, 102, 0.4)"; }} onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(255, 209, 102, 0.3)"; }}>+</button>
                   </div>
                 </div>
               )}
               {Object.values(currentOrder).reduce((a, b) => a + (b || 0), 0) === 0 && (
-                <div style={{ color: "#818997", fontStyle: "italic" }}>No items added yet.</div>
+                <div style={{ color: "#818997", fontStyle: "italic", textAlign: "center", padding: "20px", fontSize: 14 }}>No items added yet.</div>
               )}
-              <div style={{ height: 1, background: "#1e222a", margin: "8px 0" }} />
-              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700 }}>
+              <div style={{ height: 1, background: "rgba(255, 255, 255, 0.1)", margin: "16px 0" }} />
+              <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, fontSize: 18, padding: "12px", background: "rgba(255, 209, 102, 0.1)", borderRadius: 12, border: "1px solid rgba(255, 209, 102, 0.2)" }}>
                 <span>Total</span>
-                <span>{(Object.entries(currentOrder).reduce((sum, [k, v]) => sum + (PRICES[k] || 0) * (v || 0), 0)).toFixed(2).replace('.', ',')} €</span>
+                <span style={{ color: "#ffd166" }}>{(Object.entries(currentOrder).reduce((sum, [k, v]) => sum + (PRICES[k] || 0) * (v || 0), 0)).toFixed(2).replace('.', ',')} €</span>
               </div>
             </div>
           </div>
-          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-            <button onClick={() => setCurrentOrder({ small_beer: 0, large_beer: 0, whiskey: 0, wine: 0, vodka: 0, borovicka: 0 })} style={{ flex: 1, padding: 10, background: "#0e1116", color: "#e9ecef", border: "1px solid #2a2f39", borderRadius: 8, cursor: "pointer" }}>Clear</button>
-            <button onClick={submitCurrentOrder} style={{ flex: 2, padding: 10, background: "linear-gradient(90deg,#ffd166,#fca311)", color: "#0b0d12", border: "none", borderRadius: 8, fontWeight: 800, cursor: "pointer" }}>Make Order</button>
+          <div style={{ display: "flex", gap: 12, marginTop: 20 }}>
+            <button 
+              onClick={() => setCurrentOrder({ small_beer: 0, large_beer: 0, whiskey: 0, wine: 0, vodka: 0, borovicka: 0 })} 
+              style={{ 
+                flex: 1, 
+                padding: "14px", 
+                background: "rgba(255, 255, 255, 0.05)", 
+                color: "#e9ecef", 
+                border: "1px solid rgba(255, 255, 255, 0.1)", 
+                borderRadius: 12, 
+                cursor: "pointer",
+                fontWeight: 600,
+                fontSize: 14,
+                transition: "all 0.2s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.1)";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+              }}
+            >
+              Clear
+            </button>
+            <button 
+              onClick={submitCurrentOrder} 
+              style={{ 
+                flex: 2, 
+                padding: "14px", 
+                background: "linear-gradient(135deg, #ffd166 0%, #fca311 100%)",
+                color: "#0b0d12", 
+                border: "none", 
+                borderRadius: 12, 
+                fontWeight: 700, 
+                fontSize: 15,
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(1.02)";
+                e.currentTarget.style.boxShadow = "0 6px 20px rgba(255, 209, 102, 0.4)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(255, 209, 102, 0.3)";
+              }}
+            >
+              Make Order
+            </button>
           </div>
         </div>
         </div>
       </div>
   
       <div style={{ 
-        marginTop: 16, 
-        padding: "16px", 
-        border: "1px solid #1e222a", 
-        borderRadius: 12,
-        background: "#121418",
+        marginTop: 32, 
+        padding: "28px", 
+        border: "1px solid rgba(255, 255, 255, 0.1)", 
+        borderRadius: 20,
+        background: "rgba(18, 20, 24, 0.95)",
+        backdropFilter: "blur(20px)",
         color: "#e9ecef",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-        maxHeight: "300px",
+        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.3)",
+        maxHeight: "400px",
         overflow: "auto",
         boxSizing: "border-box",
         width: "100%",
         marginLeft: "auto",
-        marginRight: "auto"
+        marginRight: "auto",
+        maxWidth: "1400px"
       }}>
-        <h3 style={{ 
-          margin: "0 0 12px", 
-          color: "#e9ecef",
-          fontSize: "20px",
-          fontWeight: 700
-        }}>📋 Your Orders</h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+          <div style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            background: "linear-gradient(135deg, #ffd166 0%, #fca311 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 20,
+            boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
+          }}>
+            📋
+          </div>
+          <h3 style={{ 
+            margin: 0, 
+            color: "#e9ecef",
+            fontSize: "24px",
+            fontWeight: 700,
+            letterSpacing: "-0.3px"
+          }}>Your Orders</h3>
+        </div>
 
         {loading && <p style={{ color: "#c9ced6", fontSize: "16px" }}>⏳ Loading orders…</p>}
         {!loading && orders.length === 0 && (
