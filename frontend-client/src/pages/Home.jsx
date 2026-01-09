@@ -159,29 +159,14 @@ function Home() {
 
   return (
     <div style={{
-      background: "linear-gradient(135deg, #0f1419 0%, #1a1f2e 50%, #0f1419 100%)",
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      backgroundAttachment: "fixed",
+      background: "#808080",
       minHeight: "100vh",
       width: "100%",
       padding: "24px 16px",
       boxSizing: "border-box",
       position: "relative"
     }}>
-      {/* Background overlay for depth */}
-      <div style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: "radial-gradient(circle at 20% 50%, rgba(255, 209, 102, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(252, 163, 17, 0.08) 0%, transparent 50%)",
-        pointerEvents: "none",
-        zIndex: 0
-      }} />
-      
-      <div style={{ position: "relative", zIndex: 1 }}>
+      <div style={{ position: "relative" }}>
         <Toaster position="bottom-right" reverseOrder={false} />
         <RegistrationDialog
           open={needsRegistration}
@@ -270,46 +255,14 @@ function Home() {
             flexDirection: "column",
             cursor: "pointer"
           }}>
-            {/* Image Header */}
-            <div style={{
-              width: "100%",
-              height: "180px",
-              backgroundImage: `url(${drinkImages.small_beer})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              position: "relative",
-              overflow: "hidden"
-            }}>
-              <div style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)"
-              }} />
-              <div style={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                padding: "6px 12px",
-                background: "rgba(255, 209, 102, 0.95)",
-                backdropFilter: "blur(10px)",
-                color: "#0b0d12",
-                borderRadius: 20,
-                fontSize: 14,
-                fontWeight: 700,
-                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
-              }}>
-                {String(PRICES.small_beer).replace('.', ',')} €
-              </div>
-            </div>
-            
             {/* Content */}
             <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
-              <div>
-                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px" }}>Small Beer</h2>
-                <p style={{ margin: 0, color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>0.3L • Fresh & Crisp</p>
+              <div style={{ textAlign: "center" }}>
+                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px", textAlign: "center" }}>Small Beer</h2>
+                <div style={{ marginBottom: 8, display: "inline-block", padding: "6px 12px", background: "rgba(255, 209, 102, 0.95)", color: "#0b0d12", borderRadius: 20, fontSize: 14, fontWeight: 700, boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)" }}>
+                  {String(PRICES.small_beer).replace('.', ',')} €
+                </div>
+                <p style={{ margin: "8px 0 0", color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>0.3L • Fresh & Crisp</p>
               </div>
               
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -390,43 +343,13 @@ function Home() {
             flexDirection: "column",
             cursor: "pointer"
           }}>
-            <div style={{
-              width: "100%",
-              height: "180px",
-              backgroundImage: `url(${drinkImages.large_beer})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              position: "relative",
-              overflow: "hidden"
-            }}>
-              <div style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)"
-              }} />
-              <div style={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                padding: "6px 12px",
-                background: "rgba(255, 209, 102, 0.95)",
-                backdropFilter: "blur(10px)",
-                color: "#0b0d12",
-                borderRadius: 20,
-                fontSize: 14,
-                fontWeight: 700,
-                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
-              }}>
-                {String(PRICES.large_beer).replace('.', ',')} €
-              </div>
-            </div>
             <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
-              <div>
-                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px" }}>Large Beer</h2>
-                <p style={{ margin: 0, color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>0.5L • Premium Quality</p>
+              <div style={{ textAlign: "center" }}>
+                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px", textAlign: "center" }}>Large Beer</h2>
+                <div style={{ marginBottom: 8, display: "inline-block", padding: "6px 12px", background: "rgba(255, 209, 102, 0.95)", color: "#0b0d12", borderRadius: 20, fontSize: 14, fontWeight: 700, boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)" }}>
+                  {String(PRICES.large_beer).replace('.', ',')} €
+                </div>
+                <p style={{ margin: "8px 0 0", color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>0.5L • Premium Quality</p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <input 
@@ -501,43 +424,13 @@ function Home() {
             flexDirection: "column",
             cursor: "pointer"
           }}>
-            <div style={{
-              width: "100%",
-              height: "180px",
-              backgroundImage: `url(${drinkImages.whiskey})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              position: "relative",
-              overflow: "hidden"
-            }}>
-              <div style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)"
-              }} />
-              <div style={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                padding: "6px 12px",
-                background: "rgba(255, 209, 102, 0.95)",
-                backdropFilter: "blur(10px)",
-                color: "#0b0d12",
-                borderRadius: 20,
-                fontSize: 14,
-                fontWeight: 700,
-                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
-              }}>
-                {String(PRICES.whiskey).replace('.', ',')} €
-              </div>
-            </div>
             <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
-              <div>
-                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px" }}>Whiskey</h2>
-                <p style={{ margin: 0, color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>Premium • Aged to Perfection</p>
+              <div style={{ textAlign: "center" }}>
+                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px", textAlign: "center" }}>Whiskey</h2>
+                <div style={{ marginBottom: 8, display: "inline-block", padding: "6px 12px", background: "rgba(255, 209, 102, 0.95)", color: "#0b0d12", borderRadius: 20, fontSize: 14, fontWeight: 700, boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)" }}>
+                  {String(PRICES.whiskey).replace('.', ',')} €
+                </div>
+                <p style={{ margin: "8px 0 0", color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>Premium • Aged to Perfection</p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <input 
@@ -612,43 +505,13 @@ function Home() {
             flexDirection: "column",
             cursor: "pointer"
           }}>
-            <div style={{
-              width: "100%",
-              height: "180px",
-              backgroundImage: `url(${drinkImages.vodka})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              position: "relative",
-              overflow: "hidden"
-            }}>
-              <div style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)"
-              }} />
-              <div style={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                padding: "6px 12px",
-                background: "rgba(255, 209, 102, 0.95)",
-                backdropFilter: "blur(10px)",
-                color: "#0b0d12",
-                borderRadius: 20,
-                fontSize: 14,
-                fontWeight: 700,
-                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
-              }}>
-                {String(PRICES.vodka).replace('.', ',')} €
-              </div>
-            </div>
             <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
-              <div>
-                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px" }}>Vodka</h2>
-                <p style={{ margin: 0, color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>Premium • Smooth & Clean</p>
+              <div style={{ textAlign: "center" }}>
+                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px", textAlign: "center" }}>Vodka</h2>
+                <div style={{ marginBottom: 8, display: "inline-block", padding: "6px 12px", background: "rgba(255, 209, 102, 0.95)", color: "#0b0d12", borderRadius: 20, fontSize: 14, fontWeight: 700, boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)" }}>
+                  {String(PRICES.vodka).replace('.', ',')} €
+                </div>
+                <p style={{ margin: "8px 0 0", color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>Premium • Smooth & Clean</p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <input 
@@ -723,43 +586,13 @@ function Home() {
             flexDirection: "column",
             cursor: "pointer"
           }}>
-            <div style={{
-              width: "100%",
-              height: "180px",
-              backgroundImage: `url(${drinkImages.wine})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              position: "relative",
-              overflow: "hidden"
-            }}>
-              <div style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)"
-              }} />
-              <div style={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                padding: "6px 12px",
-                background: "rgba(255, 209, 102, 0.95)",
-                backdropFilter: "blur(10px)",
-                color: "#0b0d12",
-                borderRadius: 20,
-                fontSize: 14,
-                fontWeight: 700,
-                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
-              }}>
-                {String(PRICES.wine).replace('.', ',')} €
-              </div>
-            </div>
             <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
-              <div>
-                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px" }}>Wine</h2>
-                <p style={{ margin: 0, color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>Fine Selection • Rich & Elegant</p>
+              <div style={{ textAlign: "center" }}>
+                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px", textAlign: "center" }}>Wine</h2>
+                <div style={{ marginBottom: 8, display: "inline-block", padding: "6px 12px", background: "rgba(255, 209, 102, 0.95)", color: "#0b0d12", borderRadius: 20, fontSize: 14, fontWeight: 700, boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)" }}>
+                  {String(PRICES.wine).replace('.', ',')} €
+                </div>
+                <p style={{ margin: "8px 0 0", color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>Fine Selection • Rich & Elegant</p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <input 
@@ -834,43 +667,13 @@ function Home() {
             flexDirection: "column",
             cursor: "pointer"
           }}>
-            <div style={{
-              width: "100%",
-              height: "180px",
-              backgroundImage: `url(${drinkImages.borovicka})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              position: "relative",
-              overflow: "hidden"
-            }}>
-              <div style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: "linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)"
-              }} />
-              <div style={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                padding: "6px 12px",
-                background: "rgba(255, 209, 102, 0.95)",
-                backdropFilter: "blur(10px)",
-                color: "#0b0d12",
-                borderRadius: 20,
-                fontSize: 14,
-                fontWeight: 700,
-                boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)"
-              }}>
-                {String(PRICES.borovicka).replace('.', ',')} €
-              </div>
-            </div>
             <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
-              <div>
-                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px" }}>Borovička</h2>
-                <p style={{ margin: 0, color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>Traditional • Juniper Flavored</p>
+              <div style={{ textAlign: "center" }}>
+                <h2 style={{ margin: "0 0 8px", color: "#e9ecef", fontSize: 22, fontWeight: 700, letterSpacing: "-0.3px", textAlign: "center" }}>Borovička</h2>
+                <div style={{ marginBottom: 8, display: "inline-block", padding: "6px 12px", background: "rgba(255, 209, 102, 0.95)", color: "#0b0d12", borderRadius: 20, fontSize: 14, fontWeight: 700, boxShadow: "0 4px 12px rgba(255, 209, 102, 0.3)" }}>
+                  {String(PRICES.borovicka).replace('.', ',')} €
+                </div>
+                <p style={{ margin: "8px 0 0", color: "#adb5bd", fontSize: 13, fontWeight: 400 }}>Traditional • Juniper Flavored</p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <input 
