@@ -8,41 +8,33 @@ import { api } from "../lib/api";
 
 window.addEventListener('error', (e) => alert('JS error: ' + e.message));
 
-// Mock cocktail bar menu data
+// Menu data
 const MENU_ITEMS = [
-  // Signatures
-  { id: 'smoked_old_fashioned', name: 'Smoked Old Fashioned', category: 'signatures', price: 16.00, description: 'Woodford Reserve, demerara, angostura, smoked with cherry wood', image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=400&h=300&fit=crop' },
-  { id: 'truffle_fries', name: 'Truffle Fries', category: 'signatures', price: 12.00, description: 'Crispy hand-cut fries with truffle oil and parmesan', image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400&h=300&fit=crop' },
-  { id: 'espresso_martini', name: 'Espresso Martini', category: 'signatures', price: 14.00, description: 'Vodka, fresh espresso, coffee liqueur, vanilla', image: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=300&fit=crop' },
+  // Alcoholic Drinks
+  { id: 'vodka', name: 'Vodka (0.02L)', category: 'alcoholic', price: 2.30, description: '' },
+  { id: 'borovicka', name: 'Borovicka (0.02L)', category: 'alcoholic', price: 2.10, description: '' },
+  { id: 'slivovica', name: 'Slivovica (0.02L)', category: 'alcoholic', price: 2.50, description: '' },
+  { id: 'small_beer', name: 'Small Beer (0.3L)', category: 'alcoholic', price: 2.30, description: '' },
+  { id: 'aperol_spritz', name: 'Aperol Spritz', category: 'alcoholic', price: 4.50, description: '' },
+  { id: 'wine', name: 'Wine (0.2L)', category: 'alcoholic', price: 3.50, description: '' },
   
-  // Beer
-  { id: 'small_beer', name: 'Craft Lager (0.3L)', category: 'beer', price: 2.70, description: 'Local craft brewery, crisp and refreshing', image: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=300&fit=crop' },
-  { id: 'large_beer', name: 'Craft Lager (0.5L)', category: 'beer', price: 3.20, description: 'Local craft brewery, crisp and refreshing', image: 'https://images.unsplash.com/photo-1571613316887-6f8d5cbf7ef7?w=400&h=300&fit=crop' },
-  { id: 'ipa', name: 'IPA', category: 'beer', price: 4.50, description: 'Hoppy, citrusy, bold flavor profile', image: 'https://images.unsplash.com/photo-1608270586621-376a0e8e0f7b?w=400&h=300&fit=crop' },
+  // Non-Alcoholic Drinks
+  { id: 'coca_cola', name: 'Coca cola (330ml)', category: 'non_alcoholic', price: 2.50, description: '' },
+  { id: 'sprite', name: 'Sprite (330ml)', category: 'non_alcoholic', price: 2.50, description: '' },
+  { id: 'fanta', name: 'Fanta (330ml)', category: 'non_alcoholic', price: 2.50, description: '' },
+  { id: 'orange_juice', name: 'Orange Juice (330ml)', category: 'non_alcoholic', price: 2.50, description: '' },
+  { id: 'apple_juice', name: 'Apple Juice (330ml)', category: 'non_alcoholic', price: 2.50, description: '' },
   
-  // Wine
-  { id: 'wine', name: 'House Red Wine', category: 'wine', price: 4.00, description: 'Rich and elegant, perfect pairing', image: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=400&h=300&fit=crop' },
-  { id: 'wine_white', name: 'House White Wine', category: 'wine', price: 4.00, description: 'Crisp and refreshing, light notes', image: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?w=400&h=300&fit=crop' },
-  { id: 'champagne', name: 'Prosecco', category: 'wine', price: 8.00, description: 'Italian sparkling wine, celebratory', image: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?w=400&h=300&fit=crop' },
-  
-  // Spirits
-  { id: 'whiskey', name: 'Premium Whiskey', category: 'spirits', price: 3.00, description: 'Aged to perfection, smooth finish', image: 'https://images.unsplash.com/photo-1608847891746-451a0b65b0c1?w=400&h=300&fit=crop' },
-  { id: 'vodka', name: 'Premium Vodka', category: 'spirits', price: 2.50, description: 'Smooth and clean, versatile', image: 'https://images.unsplash.com/photo-1605276374104-dee2a0ed3cd6?w=400&h=300&fit=crop' },
-  { id: 'borovicka', name: 'Borovička', category: 'spirits', price: 2.00, description: 'Traditional juniper-flavored spirit', image: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=400&h=300&fit=crop' },
-  
-  // Starters
-  { id: 'bruschetta', name: 'Bruschetta Trio', category: 'starters', price: 9.00, description: 'Tomato, basil, mozzarella on toasted bread', image: 'https://images.unsplash.com/photo-1573080496219-bb080dd4f877?w=400&h=300&fit=crop' },
-  { id: 'wings', name: 'Buffalo Wings', category: 'starters', price: 11.00, description: 'Spicy buffalo sauce, blue cheese dip', image: 'https://images.unsplash.com/photo-1527477396000-e27163b481c2?w=400&h=300&fit=crop' },
-  { id: 'nachos', name: 'Loaded Nachos', category: 'starters', price: 10.00, description: 'Cheese, jalapeños, sour cream, guacamole', image: 'https://images.unsplash.com/photo-1513456852971-30c0b8199d4d?w=400&h=300&fit=crop' },
+  // Snacks
+  { id: 'chips', name: 'Chips', category: 'snacks', price: 2.20, description: '' },
+  { id: 'bread_sticks', name: 'Bread Sticks', category: 'snacks', price: 2.40, description: '' },
 ];
 
-const CATEGORIES = ['signatures', 'beer', 'wine', 'spirits', 'starters'];
+const CATEGORIES = ['alcoholic', 'non_alcoholic', 'snacks'];
 const CATEGORY_LABELS = {
-  signatures: 'Signatures',
-  beer: 'Beer',
-  wine: 'Wine',
-  spirits: 'Spirits',
-  starters: 'Starters'
+  alcoholic: 'Alcoholic Drinks',
+  non_alcoholic: 'Non-Alcoholic Drinks',
+  snacks: 'Snacks'
 };
 
 const ACCENT_COLOR = '#FFB800'; // Neon Amber
@@ -52,13 +44,12 @@ const TEXT_PRIMARY = '#FFFFFF';
 const TEXT_SECONDARY = '#E5E5E5';
 
 function Home() {
-  const [selectedCategory, setSelectedCategory] = useState('signatures');
+  const [selectedCategory, setSelectedCategory] = useState('alcoholic');
   const [currentOrder, setCurrentOrder] = useState({});
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState({});
   const userId = getUserId();
   const wsRef = useRef(null);
   const didConnect = useRef(null);
@@ -211,10 +202,6 @@ function Home() {
   const totalItems = Object.values(currentOrder).reduce((a, b) => a + (b || 0), 0);
   const totalPrice = orderItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
-  const handleImageLoad = (itemId) => {
-    setImageLoaded(prev => ({ ...prev, [itemId]: true }));
-  };
-
   // Close cart when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -342,7 +329,6 @@ function Home() {
       }}>
         {filteredItems.map(item => {
           const quantity = currentOrder[item.id] || 0;
-          const isLoaded = imageLoaded[item.id];
           
           return (
             <div
@@ -365,45 +351,11 @@ function Home() {
                 e.currentTarget.style.boxShadow = "none";
               }}
             >
-              {/* Image */}
-              <div style={{
-                width: "100%",
-                height: "200px",
-                background: BG_DARK,
-                position: "relative",
-                overflow: "hidden"
-              }}>
-                <img
-                  src={item.image}
-                  alt={item.name}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    opacity: isLoaded ? 1 : 0,
-                    transition: "opacity 0.3s ease"
-                  }}
-                  onLoad={() => handleImageLoad(item.id)}
-                />
-                {!isLoaded && (
-                  <div style={{
-                    position: "absolute",
-                    top: "50%",
-                    left: "50%",
-                    transform: "translate(-50%, -50%)",
-                    color: TEXT_SECONDARY,
-                    fontSize: "14px"
-                  }}>
-                    Loading...
-                  </div>
-                )}
-              </div>
-
               {/* Content */}
               <div style={{ padding: "20px", flex: 1, display: "flex", flexDirection: "column" }}>
                 <div style={{ marginBottom: "12px" }}>
                   <h3 style={{
-                    margin: "0 0 6px",
+                    margin: "0 0 8px",
                     fontSize: "20px",
                     fontWeight: 700,
                     color: TEXT_PRIMARY,
@@ -411,25 +363,27 @@ function Home() {
                   }}>
                     {item.name}
                   </h3>
-                  <p style={{
-                    margin: "0 0 8px",
-                    fontSize: "14px",
-                    color: TEXT_SECONDARY,
-                    lineHeight: "1.5",
-                    display: "-webkit-box",
-                    WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical",
-                    overflow: "hidden"
-                  }}>
-                    {item.description}
-                  </p>
+                  {item.description && (
+                    <p style={{
+                      margin: "0 0 8px",
+                      fontSize: "14px",
+                      color: TEXT_SECONDARY,
+                      lineHeight: "1.5",
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden"
+                    }}>
+                      {item.description}
+                    </p>
+                  )}
                   <div style={{
                     fontSize: "18px",
                     fontWeight: 700,
                     color: ACCENT_COLOR,
                     marginTop: "8px"
                   }}>
-                    ${item.price.toFixed(2)}
+                    {item.price.toFixed(2)} €
                   </div>
                 </div>
 
@@ -561,7 +515,7 @@ function Home() {
         >
           <div>
             <div style={{ fontSize: "16px", fontWeight: 600, color: TEXT_PRIMARY }}>
-              {totalItems} {totalItems === 1 ? 'Item' : 'Items'} • ${totalPrice.toFixed(2)}
+              {totalItems} {totalItems === 1 ? 'Item' : 'Items'} • {totalPrice.toFixed(2)} €
             </div>
           </div>
           <button
@@ -729,7 +683,7 @@ function Home() {
                           color: TEXT_SECONDARY,
                           marginBottom: "8px"
                         }}>
-                          ${item.price.toFixed(2)} each
+                          {item.price.toFixed(2)} € each
                         </div>
                         <div style={{
                           display: "flex",
@@ -795,7 +749,7 @@ function Home() {
                             fontWeight: 700,
                             color: ACCENT_COLOR
                           }}>
-                            ${(item.price * item.quantity).toFixed(2)}
+                            {(item.price * item.quantity).toFixed(2)} €
                           </div>
                         </div>
                       </div>
@@ -823,7 +777,7 @@ function Home() {
                       fontWeight: 700,
                       color: ACCENT_COLOR
                     }}>
-                      ${totalPrice.toFixed(2)}
+                      {totalPrice.toFixed(2)} €
                     </span>
                   </div>
                 </div>
