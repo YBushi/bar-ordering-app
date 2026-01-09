@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import toast, { Toaster } from 'react-hot-toast';
 import { getUserId } from "../userId";
 import {API, WS} from "../apiBase";
-import RegistrationDialog from "../components/RegistrationDialog";
-import { getDeviceToken, deleteDeviceToken } from "../lib/auth";
+// import RegistrationDialog from "../components/RegistrationDialog";
+// import { getDeviceToken, deleteDeviceToken } from "../lib/auth";
 import { api } from "../lib/api";
 
 window.addEventListener('error', (e) => alert('JS error: ' + e.message));
@@ -53,7 +53,7 @@ function Home() {
   const userId = getUserId();
   const wsRef = useRef(null);
   const didConnect = useRef(null);
-  const [needsRegistration, setNeedsRegistration] = useState(false);
+  // const [needsRegistration, setNeedsRegistration] = useState(false);
   const cartRef = useRef(null);
 
   // Initialize currentOrder from menu items
@@ -166,29 +166,29 @@ function Home() {
       .finally(() => setLoading(false));
   };
 
-  const checkAuth = useCallback(async () => {
-    const token = getDeviceToken();
-    if (!token) {
-      setNeedsRegistration(true);
-      return;
-    }
-    try {
-      await api("/me/tab");
-      setNeedsRegistration(false);
-    } catch (e) {
-      if (e.message === "UNAUTHENTICATED") {
-        deleteDeviceToken();
-        setNeedsRegistration(true);
-      } else {
-        setNeedsRegistration(false);
-      }
-    }
-  }, []);
+  // const checkAuth = useCallback(async () => {
+  //   const token = getDeviceToken();
+  //   if (!token) {
+  //     setNeedsRegistration(true);
+  //     return;
+  //   }
+  //   try {
+  //     await api("/me/tab");
+  //     setNeedsRegistration(false);
+  //   } catch (e) {
+  //     if (e.message === "UNAUTHENTICATED") {
+  //       deleteDeviceToken();
+  //       setNeedsRegistration(true);
+  //     } else {
+  //       setNeedsRegistration(false);
+  //     }
+  //   }
+  // }, []);
 
   useEffect(() => {
-    checkAuth();
+    // checkAuth();
     retrieveOrders();
-  }, [checkAuth]);
+  }, []); // [checkAuth]
 
   const filteredItems = MENU_ITEMS.filter(item => item.category === selectedCategory);
   const orderItems = Object.entries(currentOrder)
@@ -237,10 +237,10 @@ function Home() {
           },
         }}
       />
-      <RegistrationDialog
+      {/* <RegistrationDialog
         open={needsRegistration}
         onRegistered={() => setNeedsRegistration(false)}
-      />
+      /> */}
 
       {/* Sticky Header */}
       <div style={{
