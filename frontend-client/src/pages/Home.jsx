@@ -58,6 +58,8 @@ function Home() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState({});
+  const [imageError, setImageError] = useState({});
   const userId = getUserId();
   const wsRef = useRef(null);
   const didConnect = useRef(null);
