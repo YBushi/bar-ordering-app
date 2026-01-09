@@ -47,8 +47,8 @@ const TEXT_SECONDARY = '#E5E5E5';
 // Images should be named: {item_id}_image.{ext}
 // Example: coca_cola_image.jpg, vodka_image.png, etc.
 const getMenuItemImage = (itemId) => {
-  // Default to .jpg - you can change this or add logic to try multiple extensions
-  return `/menu_photos/${itemId}_image.jpg`;
+  // Try .png first (since that's what the images are), then fallback to .jpg
+  return `/menu_photos/${itemId}_image.png`;
 };
 
 function Home() {
