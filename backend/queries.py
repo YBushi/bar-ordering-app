@@ -33,6 +33,13 @@ CREATE TABLE IF NOT EXISTS order_items (
 );
 """
 
+create_guests_table = """
+CREATE TABLE IF NOT EXISTS guests (
+id TEXT PRIMARY KEY,
+name TEXT NOT NULL
+);
+"""
+
 create_rooms_table = """
 CREATE TABLE IF NOT EXISTS rooms (
 id TEXT PRIMARY KEY,

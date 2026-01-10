@@ -38,16 +38,17 @@ app.add_middleware(
 # app.include_router(client)
 # app.include_router(staff)
 
-class RegisterIn(BaseModel):
-    name: str = Field(min_length=1, max_length=20)
-    room_number:str = Field(min_length=1, max_length=5)
-
-class RegisterOut(BaseModel):
-    device_token: str
-    device_id: str
-    guest_id: str
-    room_id: str
-    tab_id: str
+# Registration temporarily disabled - will be added later
+# class RegisterIn(BaseModel):
+#     name: str = Field(min_length=1, max_length=20)
+#     room_number:str = Field(min_length=1, max_length=5)
+#
+# class RegisterOut(BaseModel):
+#     device_token: str
+#     device_id: str
+#     guest_id: str
+#     room_id: str
+#     tab_id: str
 
 class WSManager:
     def __init__(self):
@@ -102,11 +103,12 @@ def connect_db():
         connection = psycopg2.connect(db_url, sslmode="require")
         cursor = connection.cursor()
         run_ddl(cursor, queries.create_drinks_table)
+        run_ddl(cursor, queries.create_guests_table)  # Required before devices table
+        run_ddl(cursor, queries.create_rooms_table)  # Required before devices table
+        run_ddl(cursor, queries.create_tabs_table)  # Required before orders table
+        run_ddl(cursor, queries.create_devices_table)  # Required before orders table
         run_ddl(cursor, queries.create_orders_table)
         run_ddl(cursor, queries.create_orderItems_table)
-        run_ddl(cursor, queries.create_rooms_table)
-        run_ddl(cursor, queries.create_tabs_table)
-        run_ddl(cursor, queries.create_devices_table)
         connection.commit()
         print("Connected to DB!")
     except psycopg2.Error as error:
@@ -205,38 +207,39 @@ def retrieve_order(userID: Optional[str] = Query(default=None)):
 def health():
     return {"ok": True}
     
-def get_current_device(authorization: str):
-    '''Perform authorization for the current device and return its tab'''
-
-    if not authorization or not authorization.startswith("Device "):
-        raise HTTPException(status_code=401, detail="Missing device token!")
-    
-    token = authorization.split(" ", 1)[1].strip()
-    if not token:
-        raise HTTPException(status_code=401, detail="Empty device token!")
-    
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-    cursor, connection = connect_db()
-    try:
-        cursor.execute(
-            "SELECT id, guest_id, room_id FROM devices WHERE token_hash = %s",
-            (token_hash, )
-        )
-        row = cursor.fetchone()
-        if not row:
-            raise HTTPException(status_code=401, detail="Invalid device token!")
-        device_id, guest_id, room_id = row
-        return {
-            "id": device_id,
-            "guest_id": guest_id,
-            "room_id": room_id
-        }
-    finally:
-        disconnect_db(cursor, connection)
+# Authorization temporarily disabled - will be added later
+# def get_current_device(authorization: str = Header(None, alias="Authorization")):
+#     '''Perform authorization for the current device and return its tab'''
+#
+#     if not authorization or not authorization.startswith("Device "):
+#         raise HTTPException(status_code=401, detail="Missing device token!")
+#     
+#     token = authorization.split(" ", 1)[1].strip()
+#     if not token:
+#         raise HTTPException(status_code=401, detail="Empty device token!")
+#     
+#     token_hash = hashlib.sha256(token.encode()).hexdigest()
+#     cursor, connection = connect_db()
+#     try:
+#         cursor.execute(
+#             "SELECT id, guest_id, room_id FROM devices WHERE token_hash = %s",
+#             (token_hash, )
+#         )
+#         row = cursor.fetchone()
+#         if not row:
+#             raise HTTPException(status_code=401, detail="Invalid device token!")
+#         device_id, guest_id, room_id = row
+#         return {
+#             "id": device_id,
+#             "guest_id": guest_id,
+#             "room_id": room_id
+#         }
+#     finally:
+#         disconnect_db(cursor, connection)
 
 @app.post('/order')
-async def create_order(orderIn: order_class.OrderIn, device=Depends(get_current_device)):
-    '''Create an order with a timestamp and add it to a queue'''
+async def create_order(orderIn: order_class.OrderIn):  # device=Depends(get_current_device) - commented out, auth disabled
+    '''Create an order with a timestamp and add it to a queue (no auth required)'''
     cursor, connection = connect_db()
     
     try:
@@ -254,21 +257,69 @@ async def create_order(orderIn: order_class.OrderIn, device=Depends(get_current_
         if missing:
             raise HTTPException(status_code=400, detail=f"Unknown drink ids: {missing}")
         
+        # Authorization temporarily disabled - using default/anonymous values
+        # device=Depends(get_current_device) - commented out above
         # timestamp = datetime.now().isoformat()
         # get the current tab for this device's room
-        cursor.execute(
-            """SELECT id FROM tabs WHERE room_id = %s AND is_open = 1 LIMIT 1""",
-            (device["room_id"], )
-        )
+        # cursor.execute(
+        #     """SELECT id FROM tabs WHERE room_id = %s AND is_open = 1 LIMIT 1""",
+        #     (device["room_id"], )
+        # )
+        # tab_row = cursor.fetchone()
+        # if not tab_row: 
+        #     raise HTTPException(status_code=400, detail="No tab open for this room!")
+        # tab_id = tab_row[0]
+        
+        # Use default values for orders without auth
+        default_room_id = 'a11'  # Use first room as default
+        default_device_id = 'default_device_anonymous'
+        default_guest_id = 'default_guest_anonymous'
+        default_tab_id = 'default_tab_anonymous'
+        
+        # Ensure default guest exists (required by devices table foreign key)
+        # Note: This assumes guests table exists - if not, schema needs to be updated
+        try:
+            cursor.execute("SELECT id FROM guests WHERE id = %s", (default_guest_id,))
+            if not cursor.fetchone():
+                cursor.execute(
+                    "INSERT INTO guests (id, name) VALUES (%s, 'Anonymous Guest') ON CONFLICT (id) DO NOTHING",
+                    (default_guest_id,)
+                )
+        except Exception as e:
+            # If guests table doesn't exist, we'll get an error - that's okay for now
+            print(f"Warning: Could not create/check default guest: {e}")
+        
+        # Ensure default device exists (required by orders table foreign key)
+        try:
+            cursor.execute("SELECT id FROM devices WHERE id = %s", (default_device_id,))
+            if not cursor.fetchone():
+                cursor.execute(
+                    "INSERT INTO devices (id, guest_id, room_id, token_hash) VALUES (%s, %s, %s, '') ON CONFLICT (id) DO NOTHING",
+                    (default_device_id, default_guest_id, default_room_id)
+                )
+        except Exception as e:
+            # If devices table doesn't exist or guest doesn't exist, we'll get an error
+            print(f"Warning: Could not create/check default device: {e}")
+        
+        # Get or create default tab
+        cursor.execute("SELECT id FROM tabs WHERE room_id = %s AND is_open = 1 LIMIT 1", (default_room_id,))
         tab_row = cursor.fetchone()
-        if not tab_row: 
-            raise HTTPException(status_code=400, detail="No tab open for this room!")
-        tab_id = tab_row[0]
+        if tab_row:
+            default_tab_id = tab_row[0]
+        else:
+            # Create default tab if it doesn't exist
+            cursor.execute(
+                "INSERT INTO tabs (id, room_id, is_open) VALUES (%s, %s, 1) ON CONFLICT (id) DO NOTHING RETURNING id",
+                (default_tab_id, default_room_id)
+            )
+            result = cursor.fetchone()
+            if result:
+                default_tab_id = result[0]
 
         order_id = str(ulid.new())
         cursor.execute(
                 "INSERT INTO orders (id, tab_id, device_id, status) VALUES (%s, %s, %s, %s)",
-                (order_id, tab_id, device["id"], "pending")
+                (order_id, default_tab_id, default_device_id, "pending")
             )
 
             # Prepare order_items tuples (order_id, drink_id, quantity, unit_price_cents)
@@ -287,8 +338,8 @@ async def create_order(orderIn: order_class.OrderIn, device=Depends(get_current_
         connection.commit()
         return {
             "id": order_id,
-            "tab_id": tab_id,
-            "device_id": device["id"],
+            "tab_id": default_tab_id,
+            "device_id": default_device_id,
             "status": "pending",
             "items": orderIn.items
         }
